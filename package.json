@@ -1,6 +1,6 @@
 {
   "name": "iobroker.onvif",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "ioBroker onvif dapter",
   "author": {
     "name": "Kirov Ilya",
@@ -12,7 +12,7 @@
       "email": "kirovilya@gmail.com"
     }
   ],
-  "homepage": "https://github.com/kirovilya/ioBroker.onvif",
+  "homepage": "https://github.com/Haba1234/ioBroker.onvif",
   "license": "MIT",
   "keywords": [
     "ioBroker",
@@ -21,7 +21,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kirovilya/ioBroker.onvif.git"
+    "url": "git+https://github.com/Haba1234/ioBroker.onvif.git"
   },
   "dependencies": {
     "onvif": "^0.6.0",
@@ -38,7 +38,7 @@
     "test": "node node_modules/mocha/bin/mocha --exit"
   },
   "bugs": {
-    "url": "https://github.com/kirovilya/ioBroker.onvif/issues"
+    "url": "https://github.com/Haba1234/ioBroker.onvif/issues"
   },
   "readmeFilename": "README.md"
 }

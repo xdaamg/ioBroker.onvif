@@ -1,8 +1,16 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.0.1",
+        "version": "0.0.2",
         "news": {
+            "0.0.2": {
+                "en": "Event and snapshot support",
+                "de": "Event- und Snapshot-Unterstützung",
+                "ru": "Поддержка событий и снапшотов",
+                "pt": "Obsługa zdarzeń i migawek",
+                "fr": "Prise en charge des événements et des instantanés",
+                "nl": "Ondersteuning voor gebeurtenissen en snapshots"
+            },
             "0.0.1": {
                 "en": "initial adapter",
                 "de": "Initiale Version",
@@ -51,9 +59,9 @@
         "icon": "onvif.png",
         "materialize": true,
         "enabled": true,
-        "extIcon": "https://raw.githubusercontent.com/kirovilya/ioBroker.onvif/master/admin/onvif.png",
+        "extIcon": "https://raw.githubusercontent.com/Haba1234/ioBroker.onvif/master/admin/onvif.png",
         "keywords": ["onvif", "camera"],
-        "readme": "https://github.com/kirovilya/ioBroker.onvif/blob/master/README.md",
+        "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
         "loglevel": "info",
         "type": "general",
         "messagebox": true
