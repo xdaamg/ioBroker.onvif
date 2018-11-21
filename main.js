@@ -247,16 +247,15 @@ try {
 }
 
 function camEvents(devId, cam) {
-    //adapter.log.debug('camEvents: ' + JSON.stringify(camMessage));
   try {
-    cam.createPullPointSubscription(function(err, data, xml) {
+    cam.createPullPointSubscription(function(err, data) {
         if (err) {
             adapter.log.error("createPullPointSubscription: " + err);
         } else {
             adapter.log.debug("createPullPointSubscription:   " + JSON.stringify(data));
 
             timeoutID = setTimeout(function tick() {
-                cam.pullMessages({timeout: 60000, messageLimit: 1}, function(err, events, xml) {
+                cam.pullMessages({timeout: 60000, messageLimit: 1}, function(err, events) {
                     if (err) {
                         adapter.log.debug("pullMessages: " + err + ". Resubscribe to events");
                         clearTimeout(timeoutID);
@@ -288,7 +287,6 @@ function startCameras(){
             let dev = result[item],
                 devData = dev.common.data,
                 cam;
-            //updateState(dev._id, 'connected', false, {type: 'boolean'});
             cam = new MyCam({
                 hostname: devData.ip,
                 port: devData.port,
@@ -300,18 +298,22 @@ function startCameras(){
                 if (!err) {
                     adapter.log.debug('capabilities: ' + JSON.stringify(cam.capabilities));
                     adapter.log.debug('uri: ' + JSON.stringify(cam.uri));
-                    //updateState(dev._id, 'connected', true, {type: 'boolean'});
                     cameras[dev._id] = cam;
-                    cam.getEventProperties(function(err, info, xml) {
-                      if (err) { adapter.log.error(err); }
-                      adapter.log.debug("getEventProperties:   " + JSON.stringify(info));    
+                    cam.getEventProperties(function(err, info) {
+                        if (err) { adapter.log.error(err); }
+                        else {
+                            adapter.log.debug("getEventProperties:   " + JSON.stringify(info));
+                            cam.getEventServiceCapabilities(function(err, info) {
+                                if (err) { adapter.log.error(err); }
+                                adapter.log.debug("getEventServiceCapabilities:   " + JSON.stringify(info));
+                                if (info.hasOwnProperty('WSPullPointSupport')){
+                                    if (info.WSPullPointSupport) {
+                                        camEvents(dev._id, cam);
+                                    } else adapter.log.warn('Events. Service Capabilities. PullPointSupport = false');
+                                } else adapter.log.warn('Events. Service Capabilities. Pull Point not support!');
+                            });
+                        } 
                     });
-                    cam.getEventServiceCapabilities(function(err, info, xml) {
-                      if (err) { adapter.log.error(err); }
-                      adapter.log.debug("getEventServiceCapabilities:   " + JSON.stringify(info));    
-                    });
-                    camEvents(dev._id, cam);
-
                 } else {
                     adapter.log.info('startCameras err=' + err +' dev='+ JSON.stringify(devData));
                 }
@@ -319,7 +321,6 @@ function startCameras(){
         }
     });
     } catch (e) {
-      //callback();
       adapter.log.debug("Error 2:   " + e);  
   }
 }
