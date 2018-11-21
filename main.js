@@ -435,7 +435,7 @@ function discovery(options, callback) {
                 username: user,
                 password: pass,
                 port: port_entry,
-                timeout : 5000,
+                timeout : 10000,
                 preserveAddress: true
             }, function CamFunc(err) {
                 counter++;
