@@ -310,7 +310,7 @@ function startCameras(){
                             cam.getEventServiceCapabilities(function(err, info) {
                                 if (err) { adapter.log.error(err); }
                                 adapter.log.debug("getEventServiceCapabilities:   " + JSON.stringify(info));
-                                if ((info === undefined) || (info === 'undefined'){
+                                if ((info === undefined) || (info === 'undefined')){
                                     if (info.hasOwnProperty('WSPullPointSupport')){
                                         if (info.WSPullPointSupport) {
                                             camEvents(dev._id, cam);
