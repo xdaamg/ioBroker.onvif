@@ -251,6 +251,10 @@ function camEvents(devId, cam) {
     cam.createPullPointSubscription(function(err, data) {
         if (err) {
             adapter.log.error("createPullPointSubscription: " + err);
+            setTimeout(function () {
+                adapter.log.debug("Restart createPullPointSubscription");
+                camEvents(devId, cam); // restart createPullPointSubscription
+            }, 200); 
         } else {
             adapter.log.debug("createPullPointSubscription:   " + JSON.stringify(data));
 
@@ -306,11 +310,13 @@ function startCameras(){
                             cam.getEventServiceCapabilities(function(err, info) {
                                 if (err) { adapter.log.error(err); }
                                 adapter.log.debug("getEventServiceCapabilities:   " + JSON.stringify(info));
-                                if (info.hasOwnProperty('WSPullPointSupport')){
-                                    if (info.WSPullPointSupport) {
-                                        camEvents(dev._id, cam);
-                                    } else adapter.log.warn('Events. Service Capabilities. PullPointSupport = false');
-                                } else adapter.log.warn('Events. Service Capabilities. Pull Point not support!');
+                                if ((info === undefined) || (info === 'undefined'){
+                                    if (info.hasOwnProperty('WSPullPointSupport')){
+                                        if (info.WSPullPointSupport) {
+                                            camEvents(dev._id, cam);
+                                        } else adapter.log.warn('Events. Service Capabilities. PullPointSupport = false');
+                                    } else adapter.log.warn('Events. Service Capabilities. Pull Point not support!');
+                                } else adapter.log.warn('Events. Service Capabilities: undefined');
                             });
                         } 
                     });
