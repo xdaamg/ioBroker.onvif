@@ -42,7 +42,8 @@
             "es": "Adaptador Onvif"
         },
         "authors": [
-            "Kirov Ilya <kirovilya@gmail.com>"
+            "Kirov Ilya <kirovilya@gmail.com>",
+            "Roman <b_roman@inbox.ru>",
         ],
         "docs": {
             "en": "docs/en/admin.md",
