@@ -45,16 +45,6 @@
             "Kirov Ilya <kirovilya@gmail.com>",
             "Roman <b_roman@inbox.ru>",
         ],
-        "docs": {
-            "en": "docs/en/admin.md",
-            "ru": "docs/ru/admin.md",
-            "de": "docs/de/admin.md",
-            "es": "docs/es/admin.md",
-            "it": "docs/it/admin.md",
-            "fr": "docs/fr/admin.md",
-            "nl": "docs/nl/admin.md",
-            "pt": "docs/pt/admin.md"
-        },
         "platform": "Javascript/Node.js",
         "mode": "daemon",
         "icon": "onvif.png",
@@ -64,7 +54,7 @@
         "keywords": ["onvif", "camera"],
         "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
         "loglevel": "info",
-        "type": "general",
+        "type": "infrastructure",
         "messagebox": true
     },
     "native": {

@@ -327,12 +327,12 @@ function startCameras(){
                         } 
                     });
                 } else {
-                    adapter.log.info('startCameras err=' + err +' dev='+ JSON.stringify(devData));
+                    adapter.log.debug('startCameras err=' + err +' dev='+ JSON.stringify(devData));
                     updateState(dev._id, 'connection', false, {"type": "boolean", "read": true, "write": false});
                     setTimeout(function () {
-                        adapter.log.debug("Restart startCameras");
+                        adapter.log.debug("Restart function 'startCameras'");
                         startCameras(); // restart startCameras
-                    }, 60000);
+                    }, 3000000); // 10 min
                 }
             });
         }
