@@ -43,7 +43,7 @@
         },
         "authors": [
             "Kirov Ilya <kirovilya@gmail.com>",
-            "Roman <b_roman@inbox.ru>",
+            "Roman <b_roman@inbox.ru>"
         ],
         "platform": "Javascript/Node.js",
         "mode": "daemon",
