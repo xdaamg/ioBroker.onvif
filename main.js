@@ -250,14 +250,20 @@ function camEvents(devId, cam) {
   try {
     cam.createPullPointSubscription(function(err, data) {
         if (err) {
+        let errTimeout = 200;
             adapter.log.error("createPullPointSubscription: " + err);
+            if (err.indexOf('Network timeout') !==-1){
+                errTimeout = 60000; // 1 min
+                adapter.log.error(devId + " Network timeout");
+                updateState(devId, 'connection', false, {"type": "boolean", "read": true, "write": false});
+            }
             setTimeout(function () {
                 adapter.log.debug("Restart createPullPointSubscription");
                 camEvents(devId, cam); // restart createPullPointSubscription
             }, 200); 
         } else {
             adapter.log.debug("createPullPointSubscription:   " + JSON.stringify(data));
-
+            updateState(devId, 'connection', true, {"type": "boolean", "read": true, "write": false});
             timeoutID = setTimeout(function tick() {
                 cam.pullMessages({timeout: 60000, messageLimit: 1}, function(err, events) {
                     if (err) {
@@ -322,6 +328,7 @@ function startCameras(){
                     });
                 } else {
                     adapter.log.info('startCameras err=' + err +' dev='+ JSON.stringify(devData));
+                    updateState(dev._id, 'connection', false, {"type": "boolean", "read": true, "write": false});
                 }
             });
         }
@@ -607,9 +614,9 @@ function processScannedDevices(devices, callback) {
 
 function updateDev(dev_id, dev_name, devData) {
     // create dev
-    adapter.log.warn('создать dev_id: ' + JSON.stringify(dev_id));
-    adapter.log.debug('создать dev_name: ' + JSON.stringify(dev_name));
-    adapter.log.debug('создать devData: ' + JSON.stringify(devData));
+    adapter.log.warn('СЃРѕР·РґР°С‚СЊ dev_id: ' + JSON.stringify(dev_id));
+    adapter.log.debug('СЃРѕР·РґР°С‚СЊ dev_name: ' + JSON.stringify(dev_name));
+    adapter.log.debug('СЃРѕР·РґР°С‚СЊ devData: ' + JSON.stringify(devData));
     adapter.setObjectNotExists(dev_id, {
         type: 'device',
         common: {name: dev_name, data: devData}
