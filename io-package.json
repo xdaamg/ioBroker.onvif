@@ -9,7 +9,9 @@
                 "ru": "Поддержка событий и снапшотов",
                 "pt": "Obsługa zdarzeń i migawek",
                 "fr": "Prise en charge des événements et des instantanés",
-                "nl": "Ondersteuning voor gebeurtenissen en snapshots"
+                "nl": "Ondersteuning voor gebeurtenissen en snapshots",
+                "es": "Soporte para eventos e instantáneas",
+                "pl": "Obsługa zdarzeń i migawek"
             },
             "0.0.1": {
                 "en": "initial adapter",
@@ -17,7 +19,9 @@
                 "ru": "Первоначальный адаптер",
                 "pt": "Versão inicial",
                 "fr": "Version initiale",
-                "nl": "Eerste release"
+                "nl": "Eerste release",
+                "es": "adaptador inicial",
+                "pl": "początkowy adapter"
             }
         },
 		"title": "Onvif adapter",
@@ -29,7 +33,7 @@
             "nl": "Onvif sjabloonadapter",
             "fr": "Onvif adaptateur",
             "it": "Adattatore Onvif",
-            "es": "Adaptador Onvif"
+            "es": "Adaptador onvif"
         },
         "desc": {
             "en": "Onvif Adapter",
@@ -45,21 +49,27 @@
             "Kirov Ilya <kirovilya@gmail.com>",
             "Roman <b_roman@inbox.ru>"
         ],
+        "license": "MIT",
         "platform": "Javascript/Node.js",
         "mode": "daemon",
         "icon": "onvif.png",
         "materialize": true,
-        "enabled": true,
+        "enabled": false,
         "extIcon": "https://raw.githubusercontent.com/Haba1234/ioBroker.onvif/master/admin/onvif.png",
-        "keywords": ["onvif", "camera"],
+        "keywords": [
+            "onvif",
+            "camera"
+        ],
         "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
         "loglevel": "info",
         "type": "infrastructure",
-        "messagebox": true
+        "messagebox": true,
+        "stopBeforeUpdate": true
     },
     "native": {
         
     },
+    "objects": [],
     "instanceObjects": [
         {
             "_id":  "discoveryRunning",
