@@ -204,46 +204,51 @@ function saveImage(stream, username, password, file, callback){
 
 function parseEvents(devId, events){
 var value;
-try {
-    adapter.log.debug("notificationMessage: " + JSON.stringify(events.notificationMessage));
-    let name = "message";
-      for (let element1 in events.notificationMessage){
-          for (let element2 in events.notificationMessage[element1]){
-              //adapter.log.debug("arr2: " + element2);
-              if (element2 === "_") name = name + "." + events.notificationMessage[element1][element2]; // topic
-              if (element2 === "message") {
-                   for (let element3 in events.notificationMessage[element1][element2]){
-                      //adapter.log.debug("arr3: " + element3);
-                      if (element3 === "$") {
-                          //adapter.log.debug("Time: " + events.notificationMessage[element1][element2][element3].UtcTime); // UtcTime
-                          value = events.notificationMessage[element1][element2][element3].UtcTime;
-                          //adapter.log.warn(value.toLocaleString('ru-RU'));
-                          updateState(devId, name + ".Time", value.toLocaleString('ru-RU'), {"type": "string", "read": true, "write": false});
-                      }
-                      if ((element3 === "source")||(element3 === "data")) {
-                          let nameObj;
-                          for (let element4 in events.notificationMessage[element1][element2][element3].simpleItem){
-                              //adapter.log.debug("arr4: " + element4);
-                              let len = Object.keys(events.notificationMessage[element1][element2][element3].simpleItem).length;
-                              if (len == 1) {
-                                  nameObj = name + "." + events.notificationMessage[element1][element2][element3].simpleItem[element4].Name;
-                                  value = events.notificationMessage[element1][element2][element3].simpleItem[element4].Value;
-                              } else {
-                                  nameObj = name + "." + events.notificationMessage[element1][element2][element3].simpleItem[element4]["$"].Name;
-                                  value = events.notificationMessage[element1][element2][element3].simpleItem[element4]["$"].Value;
-                              }
-                              adapter.log.debug("Name: " + nameObj); // Name
-                              adapter.log.debug("Value: " + value); // Value
-                              updateState(devId, nameObj, value, {"type": typeof(value), "read": true, "write": false});
-                          }
-                      }
-                  }
-              }
-          }
-      }
-  } catch (e) {
-      adapter.log.debug("Error:   " + e);  
-  }
+	try { 
+		if (events.notificationMessage !== undefined){
+			adapter.log.debug("notificationMessage: " + JSON.stringify(events.notificationMessage));
+			let name = "message";
+			for (let element1 in events.notificationMessage){
+				for (let element2 in events.notificationMessage[element1]){
+					//adapter.log.debug("arr2: " + element2);
+					if (element2 === "_") name = name + "." + events.notificationMessage[element1][element2]; // topic
+					if (element2 === "message") {
+						for (let element3 in events.notificationMessage[element1][element2]){
+							//adapter.log.debug("arr3: " + element3);
+							if (element3 === "$") {
+								//adapter.log.debug("Time: " + events.notificationMessage[element1][element2][element3].UtcTime); // UtcTime
+								value = events.notificationMessage[element1][element2][element3].UtcTime;
+								//adapter.log.warn(value.toLocaleString('ru-RU'));
+								updateState(devId, name + ".Time", value.toLocaleString('ru-RU'), {"type": "string", "read": true, "write": false});
+							}
+							if ((element3 === "source")||(element3 === "data")) {
+								let nameObj;
+								for (let element4 in events.notificationMessage[element1][element2][element3].simpleItem){
+								    //adapter.log.debug("arr4: " + element4);
+								    let len = Object.keys(events.notificationMessage[element1][element2][element3].simpleItem).length;
+								    if (len == 1) {
+										nameObj = name + "." + events.notificationMessage[element1][element2][element3].simpleItem[element4].Name;
+										value = events.notificationMessage[element1][element2][element3].simpleItem[element4].Value;
+								    } else {
+										nameObj = name + "." + events.notificationMessage[element1][element2][element3].simpleItem[element4]["$"].Name;
+										value = events.notificationMessage[element1][element2][element3].simpleItem[element4]["$"].Value;
+									}
+									adapter.log.debug("Name: " + nameObj); // Name
+									adapter.log.debug("Value: " + value); // Value
+									updateState(devId, nameObj, value, {"type": typeof(value), "read": true, "write": false});
+								}
+							}
+						}
+					}
+				}
+			}
+		} //Events: {"currentTime":"2019-01-03T04:35:17.000Z","terminationTime":"2019-01-03T04:44:17.000Z"}
+		if (events.currentTime !== undefined){
+			//пока не знаю куда применить
+		}
+	} catch (e) {
+		adapter.log.debug("Error:   " + e);  
+	}
 }
 
 function camEvents(devId, cam) {
