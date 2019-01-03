@@ -184,18 +184,18 @@ function saveFileSnapshot(from, command, message, callback){
 function saveImage(stream, username, password, file, callback){
     let picStream;
     request
-      .get(stream, {
-          'auth': {
-              'user': username,
-              'pass': password,
-              'sendImmediately': false
-          }
-      })
-      .on('error', function(err) {
-        adapter.log.error(err)
-        callback(err);
-      })
-      .pipe(picStream = fs.createWriteStream(file))
+		.get(stream, {
+			'auth': {
+				'user': username,
+				'pass': password,
+				'sendImmediately': false
+			}
+		})
+		.on('error', function(err) {
+			adapter.log.error(err)
+			callback(err);
+		})
+		.pipe(picStream = fs.createWriteStream(file))
     picStream.on('close', function() {
         adapter.log.debug('Image saved');
         callback("OK");
