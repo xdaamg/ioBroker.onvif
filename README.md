@@ -6,12 +6,11 @@
 ## Настройка
 1. Открыть Настройки драйвера
 2. Нажать кнопку сканирования (сверху справа)
-3. Ввести необходимые настройки или оставить по умолчанию
-    startRange - начальный ip адрес диапазона сканирования
-    End Range - конечный ip адрес диапазона сканирования
-    Port list - через запятую порты сервиса onvif (по умолчанию: 80, 7575, 8000, 8080, 8081)
-    User name - по умолчанию admin
-    Passord - по умолчанию admin
+3. Ввести необходимые настройки или оставить по умолчанию: startRange - начальный ip адрес диапазона сканирования, 
+End Range - конечный ip адрес диапазона сканирования, 
+Port list - через запятую порты сервиса onvif (по умолчанию: 80, 7575, 8000, 8080, 8081), 
+User name - по умолчанию admin, 
+Password - по умолчанию admin
 4. Нажать START SCAN
 
 Если все сделано правильно, в основном окне настроек появятся найденые камеры и через несколько секунд должны будут подтянуться снапшоты
@@ -51,12 +50,12 @@ function getSnapshot(caption){
 ## Customization
 1. Open Driver Settings
 2. Press the scan button (top right)
-3. Enter the necessary settings or leave the default
-    startRange - the starting ip address of the scanning range
-    End Range - the ending ip address of the scanning range
-    Port list - comma-separated ports of the onvif service (default: 80, 7575, 8000, 8080, 8081)
-    User name - default admin
-    Passord - default admin
+3. Enter the necessary settings or leave the default: 
+startRange - the starting ip address of the scanning range, 
+End Range - the ending ip address of the scanning range, 
+Port list - comma-separated ports of the onvif service (default: 80, 7575, 8000, 8080, 8081), 
+User name - default admin, 
+Password - default admin
 4. Press START SCAN
 
 If everything is made correctly, then the found cameras will appear in a primary window of settings and in several seconds snapshots will have to be tightened.
