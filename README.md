@@ -1,6 +1,6 @@
 ![Logo](admin/onvif_logo.png)
 # ioBroker.onvif
-=================
+![Number of Installations](http://iobroker.live/badges/onvif-installed.svg) ![Number of Installations](http://iobroker.live/badges/onvif-stable.svg) =================
 # RU
 
 ## Настройка
