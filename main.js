@@ -15,7 +15,6 @@ var utils =    require(__dirname + '/lib/utils'); // Get common adapter utils
 // name has to be set and has to be equal to adapters folder name and main file name excluding extension
 // adapter will be restarted automatically every time as the configuration changed, e.g system.adapter.template.0
 var adapter = new utils.Adapter('onvif');
-
 var Cam = require('onvif').Cam;
 var flow = require('nimble');
 require('onvif-snapshot');
@@ -124,7 +123,7 @@ adapter.on('message', function (obj) {
             adapter.log.debug('Received "getSnapshot" event');
             getSnapshot(obj.from, obj.command, obj.message, obj.callback);
             break;
-            case 'saveFileSnapshot':
+        case 'saveFileSnapshot':
             adapter.log.debug('Received "getSnapshotUri" event');
             saveFileSnapshot(obj.from, obj.command, obj.message, obj.callback);
             break;
@@ -255,17 +254,17 @@ function camEvents(devId, cam) {
   try {
     cam.createPullPointSubscription(function(err, data) {
         if (err) {
-        let errTimeout = 200;
+			//let errTimeout = 200;
             adapter.log.error("createPullPointSubscription: " + err);
-            if (err.indexOf('Network timeout') !==-1){
-                errTimeout = 60000; // 1 min
-                adapter.log.error(devId + " Network timeout");
-                updateState(devId, 'connection', false, {"type": "boolean", "read": true, "write": false});
-            }
-            setTimeout(function () {
-                adapter.log.debug("Restart createPullPointSubscription");
-                camEvents(devId, cam); // restart createPullPointSubscription
-            }, 200); 
+            //if (err.indexOf('Network timeout') !==-1){
+            //    errTimeout = 60000; // 1 min
+            //    adapter.log.error(devId + " Network timeout");
+            //    updateState(devId, 'connection', false, {"type": "boolean", "read": true, "write": false});
+            //}
+            //setTimeout(function () {
+            //    adapter.log.debug("Restart createPullPointSubscription");
+            //    camEvents(devId, cam); // restart createPullPointSubscription
+            //}, 200); 
         } else {
             adapter.log.debug("createPullPointSubscription:   " + JSON.stringify(data));
             updateState(devId, 'connection', true, {"type": "boolean", "read": true, "write": false});
@@ -467,15 +466,17 @@ function discovery(options, callback) {
                     return;
                 }
 
-                var cam_obj = this;
+                let cam_obj = this;
 
-                var got_date;
-                var got_info;
-                var got_live_stream_tcp;
-                var got_live_stream_udp;
-                var got_live_stream_multicast;
-                var got_recordings;
-                var got_replay_stream;
+                let got_date;
+                let got_info;
+                let got_live_stream_tcp;
+                let got_live_stream_udp;
+                let got_live_stream_multicast;
+                let got_recordings;
+                let got_replay_stream;
+				let hasEvents = false;
+				let hasTopics = false;
 
                 // Use Nimble to execute each ONVIF function in turn
                 // This is used so we can wait on all ONVIF replies before
@@ -483,22 +484,91 @@ function discovery(options, callback) {
                 flow.series([
                     function(callback) {
                         cam_obj.getSystemDateAndTime(function(err, date, xml) {
+							if (!err) {adapter.log.debug('Device Time   ' + date);}
                             if (!err) got_date = date;
                             callback();
                         });
                     },
                     function(callback) {
                         cam_obj.getDeviceInformation(function(err, info, xml) {
+							if (!err) {adapter.log.debug('Manufacturer  ' + info.manufacturer);}
+							if (!err) {adapter.log.debug('Model         ' + info.model);}
+							if (!err) {adapter.log.debug('Firmware      ' + info.firmwareVersion);}
+							if (!err) {adapter.log.debug('Serial Number ' + info.serialNumber);}
                             if (!err) got_info = info;
                             callback();
                         });
                     },
+					function(callback) {
+						cam_obj.getCapabilities(function(err, data, xml) {
+							if (err) {
+								adapter.log.debug(err);
+							}
+							if (!err && data.events && data.events.WSPullPointSupport && data.events.WSPullPointSupport == true) {
+								adapter.log.debug('Camera supports WSPullPoint');
+								hasEvents = true;
+							} else {
+								adapter.log.debug('Camera does not show WSPullPoint support, but trying anyway');
+								// Have an Axis cameras that says False to WSPullPointSuppor but supports it anyway
+								hasEvents = true; // Hack for Axis cameras
+							}
+
+							if (hasEvents == false) {
+								adapter.log.debug('This camera/NVT does not support PullPoint Events');
+							}
+							callback();
+						})
+					},
+					function(callback) {
+						if (hasEvents) {
+							cam_obj.getEventProperties(function(err, data, xml) {
+								if (err) {
+									adapter.log.debug(err);
+								} else {
+									// Display the available Topics
+									let parseNode = function(node, topicPath) {
+										// loop over all the child nodes in this node
+										for (const child in node) {
+											if (child == "$") {continue;} else if (child == "messageDescription") {
+												// we have found the details that go with an event
+												// examine the messageDescription
+												let IsProperty = false;
+												let source = '';
+												let data = '';
+												if (node[child].$ && node[child].$.IsProperty) {IsProperty = node[child].$.IsProperty}
+												if (node[child].source) {source = JSON.stringify(node[child].source)}
+												if (node[child].data) {data = JSON.stringify(node[child].data)}
+												adapter.log.debug('Found Event - ' + topicPath.toUpperCase())
+												//console.log('  IsProperty=' + IsProperty);
+												if (source.length > 0) {adapter.log.debug('  Source=' + source);}
+												if (data.length > 0) {adapter.log.debug('  Data=' + data);}
+												hasTopics = true
+												return
+											} else {
+												// decend into the child node, looking for the messageDescription
+												parseNode(node[child], topicPath + '/' + child)
+											}
+										}
+									}
+									parseNode(data.topicSet, '')
+								}
+								adapter.log.debug('');
+								adapter.log.debug('');
+								callback()
+							});
+						} else {
+							callback()
+						}
+					},
                     function(callback) {
                         try {
                             cam_obj.getStreamUri({
                                 protocol: 'RTSP',
                                 stream: 'RTP-Unicast'
                             }, function(err, stream, xml) {
+								if (err) {
+									adapter.log.error(err);
+								}
                                 if (!err) got_live_stream_tcp = stream;
                                 callback();
                             });
@@ -526,6 +596,53 @@ function discovery(options, callback) {
                             });
                         } catch(err) {callback();}
                     },
+					function(callback) {
+						try {
+							cam_obj.getPresets({}, // use 'default' profileToken
+								// Completion callback function
+								// This callback is executed once we have a list of presets
+								function (err, stream, xml) {
+									if (err) {
+										adapter.log.warn("GetPreset Error " + err);
+										//return;
+										callback();
+									} else {
+										// loop over the presets and populate the arrays
+										// Do this for the first 9 presets
+										adapter.log.warn("GetPreset Reply: " +  + JSON.stringify(stream));
+										/*let count = 1;
+										for(let item in stream) {
+											let name = item;          //key
+											let token = stream[item]; //value
+											// It is possible to have a preset with a blank name so generate a name
+											if (name.length == 0) name = 'no name (' + token + ')';
+											preset_names.push(name);
+											preset_tokens.push(token);
+
+											// Show first 9 preset names to user
+											if (count < 9) {
+												adapter.log.warn('Press key ' + count + ' for preset "' + name + '"');
+											count++;
+											}
+										}*/
+										callback();
+									}
+								}
+							);
+						} catch(err) {callback();}
+					},
+					function(callback) {
+                        cam_obj.getConfigurations(function(err, data, xml) {
+                            if (!err) adapter.log.warn("getConfigurations: " +  + JSON.stringify(data));
+                            callback();
+                        });
+                    },
+					function(callback) {
+                        cam_obj.getNodes(function(err, data, xml) {
+                            if (!err) adapter.log.warn("getNodes: " +  + JSON.stringify(data));
+                            callback();
+                        });
+                    },
                     function(callback) {
                         cam_obj.getRecordings(function(err, recordings, xml) {
                             if (!err) got_recordings = recordings;
@@ -535,7 +652,7 @@ function discovery(options, callback) {
                     function(callback) {
                         // Get Recording URI for the first recording on the NVR
                         if (got_recordings) {
-                            //adapter.log.debug('got_recordings='+JSON.stringify(got_recordings));
+                            adapter.log.debug('got_recordings='+JSON.stringify(got_recordings));
                             if (Array.isArray(got_recordings)) {
                                 got_recordings = got_recordings[0];
                             }

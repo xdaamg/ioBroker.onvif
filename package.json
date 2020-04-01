@@ -1,6 +1,6 @@
 {
   "name": "iobroker.onvif",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "ioBroker onvif dapter",
   "author": {
     "name": "Kirov Ilya",
@@ -28,13 +28,11 @@
     "url": "git+https://github.com/Haba1234/ioBroker.onvif.git"
   },
   "dependencies": {
-    "onvif": "^0.6.0",
-    "nimble": "^0.0.2",
+    "onvif": "^0.6.2",
     "onvif-snapshot": "^1.0.2"
   },
   "devDependencies": {
     "gulp": "^3.9.1",
-    "mocha": "^4.1.0",
     "chai": "^4.1.2"
   },
   "main": "main.js",
