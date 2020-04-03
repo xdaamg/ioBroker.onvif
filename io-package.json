@@ -1,8 +1,20 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.0.2",
+        "version": "0.0.3",
         "news": {
+			"0.0.3": {
+				"en": "Bug fix and various little things",
+				"de": "Fehlerbehebung und verschiedene Kleinigkeiten",
+				"ru": "Исправление ошибок и различные мелочи",
+				"pt": "Correção de bugs e várias pequenas coisas",
+				"nl": "Bugfix en verschillende kleine dingen",
+				"fr": "Correction de bugs et diverses petites choses",
+				"it": "Bug fix e varie piccole cose",
+				"es": "Corrección de errores y varias pequeñas cosas.",
+				"pl": "Poprawka błędu i różne drobne rzeczy",
+				"zh-cn": "错误修复和各种小事情"
+			},
             "0.0.2": {
                 "en": "Event and snapshot support",
                 "de": "Event- und Snapshot-Unterstützung",
@@ -27,44 +39,54 @@
 		"title": "Onvif Support",
         "titleLang": {
             "en": "Onvif adapter",
-            "de": "Onvif Vorlagenadapter",
-            "ru": "Адаптер Onvif",
-            "pt": "Adaptador Onvif",
-            "nl": "Onvif sjabloonadapter",
-            "fr": "Onvif adaptateur",
-            "it": "Adattatore Onvif",
-            "es": "Adaptador onvif"
+			"de": "Onvif-Adapter",
+			"ru": "Onvif адаптер",
+			"pt": "Adaptador onvif",
+			"nl": "Onvif-adapter",
+			"fr": "Adaptateur Onvif",
+			"it": "Adattatore Onvif",
+			"es": "Adaptador Onvif",
+			"pl": "Adapter Onvif",
+			"zh-cn": "Onvif适配器"
         },
         "desc": {
-            "en": "Onvif Adapter",
-            "de": "Onvif Adapter",
-            "ru": "Onvif драйвер",
-            "pt": "Onvif adaptador",
-            "fr": "Onvif adaptateur",
-            "nl": "Onvif Adapter",
-            "it": "Adattatore Onvif",
-            "es": "Adaptador Onvif"
+            "en": "Onvif adapter",
+			"de": "Onvif-Adapter",
+			"ru": "Onvif адаптер",
+			"pt": "Adaptador onvif",
+			"nl": "Onvif-adapter",
+			"fr": "Adaptateur Onvif",
+			"it": "Adattatore Onvif",
+			"es": "Adaptador Onvif",
+			"pl": "Adapter Onvif",
+			"zh-cn": "Onvif适配器"
         },
         "authors": [
             "Kirov Ilya <kirovilya@gmail.com>",
             "Roman <b_roman@inbox.ru>"
         ],
+		"keywords": [
+			"ioBroker",
+            "onvif",
+            "camera",
+			"Smart Home",
+            "home automation"
+        ],
         "license": "MIT",
         "platform": "Javascript/Node.js",
-        "mode": "daemon",
+		"main": "main.js",
         "icon": "onvif.png",
-        "materialize": true,
         "enabled": false,
         "extIcon": "https://raw.githubusercontent.com/Haba1234/ioBroker.onvif/master/admin/onvif.png",
-        "keywords": [
-            "onvif",
-            "camera"
-        ],
         "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
         "loglevel": "info",
+		"mode": "daemon",
         "type": "infrastructure",
-        "messagebox": true,
-        "stopBeforeUpdate": true
+		"compact": true,
+		"materialize": true,
+		"materializeTab": true,
+		"messagebox": true,
+		"stopBeforeUpdate": true
     },
     "native": {
         

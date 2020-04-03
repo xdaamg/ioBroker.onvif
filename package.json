@@ -1,7 +1,7 @@
 {
   "name": "iobroker.onvif",
   "version": "0.0.3",
-  "description": "ioBroker onvif dapter",
+  "description": "ioBroker onvif adapter",
   "author": {
     "name": "Kirov Ilya",
     "email": "kirovilya@gmail.com"
@@ -12,16 +12,19 @@
       "email": "kirovilya@gmail.com"
     },
     {
-      "name": "Roman",
+      "name": "Haba1234",
       "email": "b_roman@inbox.ru"
     }
   ],
   "homepage": "https://github.com/Haba1234/ioBroker.onvif",
+  "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
   "license": "MIT",
   "keywords": [
     "ioBroker",
     "onvif",
-    "camera"
+    "camera",
+    "Smart Home",
+    "home automation"
   ],
   "repository": {
     "type": "git",
@@ -31,13 +34,13 @@
     "onvif": "^0.6.2",
     "nimble": "^0.0.2",
     "onvif-snapshot": "^1.0.2",
-    "@iobroker/adapter-core": "^1.0.3"
+    "@iobroker/adapter-core": "^2.2.1"
   },
   "devDependencies": {
     "gulp": "^3.9.1",
     "mocha": "^4.1.0",
     "chai": "^4.1.2",
-    "@iobroker/testing": "^1.1.10"
+    "@iobroker/testing": "^2.1.0"
   },
   "main": "main.js",
   "scripts": {
