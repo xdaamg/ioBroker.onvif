@@ -106,6 +106,7 @@ It is possible to cause both on an event, and according to the button/schedule
 
 ### 0.0.3 (2020-04-03)
 * (haba1234) bag fix and different little things
+* (haba1234) compact mode
 
 ### 0.0.2 (2018-11-20)
 * (haba1234) add events and snapshot
