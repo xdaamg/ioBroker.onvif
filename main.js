@@ -8,25 +8,26 @@
 /*jslint node: true */
 'use strict';
 
-// you have to require the utils module and call adapter function
-var utils = require('@iobroker/adapter-core'); // Get common adapter utils
-
+// The adapter-core module gives you access to the core ioBroker functions
+// you need to create an adapter
+const utils = require('@iobroker/adapter-core'); // Get common adapter utils
+//const adapterName = require('./package.json').name.split('.').pop();
 // you have to call the adapter function and pass a options object
 // name has to be set and has to be equal to adapters folder name and main file name excluding extension
 // adapter will be restarted automatically every time as the configuration changed, e.g system.adapter.template.0
-var adapter = new utils.Adapter('onvif');
-var Cam = require('onvif').Cam;
-var flow = require('nimble');
+//var adapter = new utils.Adapter('onvif');
+const Cam = require('onvif').Cam;
+const flow = require('nimble');
 require('onvif-snapshot');
-var url = require('url');
+const url = require('url');
 const fs = require('fs');
-var request = require('request');
-var inherits = require('util').inherits;
+const request = require('request');
+const inherits = require('util').inherits;
 
-var isDiscovery = false;
-var timeoutID;
+let isDiscovery = false;
+let timeoutID;
 
-var cameras = {};
+let cameras = {};
 
 function override(child, fn) {
     child.prototype[fn.name] = fn;
@@ -55,101 +56,6 @@ override(MyCam, function getSnapshotUri(options, callback) {
         if (callback) callback(err, res);
     });
 });
-
-
-// is called when adapter shuts down - callback has to be called under any circumstances!
-adapter.on('unload', function (callback) {
-    clearTimeout(timeoutID);
-    if (isDiscovery) {
-        adapter && adapter.setState && adapter.setState('discoveryRunning', false, true);
-        isDiscovery = false;
-    }
-    try {
-        adapter.log.debug('cleaned everything up...');
-        callback();
-    } catch (e) {
-        callback();
-    }
-});
-
-
-// is called if a subscribed object changes
-adapter.on('objectChange', function (id, obj) {
-    // Warning, obj can be null if it was deleted
-    adapter.log.debug('objectChange ' + id + ' ' + JSON.stringify(obj));
-});
-
-
-// is called if a subscribed state changes
-adapter.on('stateChange', function (id, state) {
-    // Warning, state can be null if it was deleted
-    adapter.log.debug('stateChange ' + id + ' ' + JSON.stringify(state));
-
-    // you can use the ack flag to detect if it is status (true) or command (false)
-    if (state && !state.ack) {
-        adapter.log.debug('ack is not set!');
-        adapter.log.debug('User stateChange ' + id + ' ' + JSON.stringify(state));
-        const devId = adapter.namespace + '.' + id.split('.')[2]; // iobroker device id
-    }
-});
-
-
-// Some message was sent to adapter instance over message box. Used by email, pushover, text2speech, ...
-adapter.on('message', function (obj) {
-    if (!obj || !obj.command) return;
-    switch (obj.command) {
-        case 'discovery':
-            adapter.log.debug('Received "discovery" event');
-            discovery(obj.message, function (error, newInstances, devices) {
-                isDiscovery = false;
-                adapter.log.debug('Discovery finished');
-                adapter.setState('discoveryRunning', false, true);
-                adapter.sendTo(obj.from, obj.command, {
-                    error:        error,
-                    devices:      devices,
-                    newInstances: newInstances
-                }, obj.callback);
-            });
-            break;
-        case 'getDevices':
-            adapter.log.warn('Received "getDevices" event');
-            getDevices(obj.from, obj.command, obj.message, obj.callback);
-            break;
-        case 'deleteDevice':
-            adapter.log.error('Received "deleteDevice" event');
-            deleteDevice(obj.from, obj.command, obj.message, obj.callback);
-            break;
-        case 'getSnapshot':
-            adapter.log.debug('Received "getSnapshot" event');
-            getSnapshot(obj.from, obj.command, obj.message, obj.callback);
-            break;
-        case 'saveFileSnapshot':
-            adapter.log.debug('Received "getSnapshotUri" event');
-            saveFileSnapshot(obj.from, obj.command, obj.message, obj.callback);
-            break;
-        default:
-            adapter.log.debug('Unknown message: ' + JSON.stringify(obj));
-            break;
-    }
-});
-
-
-// is called when databases are connected and adapter received configuration.
-// start here!
-adapter.on('ready', function () {
-    main();
-});
-
-
-function main() {
-    isDiscovery = false;
-    adapter.setState('discoveryRunning', false, true);
-    // in this template all states changes inside the adapters namespace are subscribed
-    adapter.subscribeStates('*');
-    // connect to cameras
-    startCameras();
-}
-
 
 function getSnapshot(from, command, message, callback){
     var camId = message.id,
@@ -801,3 +707,188 @@ function fromLong(ipl) {
         (ipl >> 8 & 255) + '.' +
         (ipl & 255) );
 };
+
+class Onvif extends utils.Adapter {
+
+    /**
+     * @param {Partial<ioBroker.AdapterOptions>} [options={}]
+     */
+    constructor(options) {
+        super({
+            ...options,
+            name: 'Onvif',
+        });
+        this.on('ready', this.onReady.bind(this));
+        this.on('objectChange', this.onObjectChange.bind(this));
+        this.on('stateChange', this.onStateChange.bind(this));
+        this.on('message', this.onMessage.bind(this));
+        this.on('unload', this.onUnload.bind(this));
+    }
+
+    /**
+     * Is called when databases are connected and adapter received configuration.
+     */
+    async onReady() {
+        // Initialize your adapter here
+
+        // The adapters config (in the instance object everything under the attribute "native") is accessible via
+        // this.config:
+        //this.log.info('config option1: ' + this.config.option1);
+        //this.log.info('config option2: ' + this.config.option2);
+
+        /*
+        For every state in the system there has to be also an object of type state
+        Here a simple template for a boolean variable named "testVariable"
+        Because every adapter instance uses its own unique namespace variable names can't collide with other adapters variables
+        */
+        /*await this.setObjectAsync('testVariable', {
+            type: 'state',
+            common: {
+                name: 'testVariable',
+                type: 'boolean',
+                role: 'indicator',
+                read: true,
+                write: true,
+            },
+            native: {},
+        });*/
+
+        // in this template all states changes inside the adapters namespace are subscribed
+        this.subscribeStates('*');
+
+        /*
+        setState examples
+        you will notice that each setState will cause the stateChange event to fire (because of above subscribeStates cmd)
+        */
+        // the variable testVariable is set to true as command (ack=false)
+        //await this.setStateAsync('testVariable', true);
+
+        // same thing, but the value is flagged "ack"
+        // ack should be always set to true if the value is received from or acknowledged from the target system
+        //await this.setStateAsync('testVariable', { val: true, ack: true });
+
+        // same thing, but the state is deleted after 30s (getState will return null afterwards)
+        //await this.setStateAsync('testVariable', { val: true, ack: true, expire: 30 });
+
+        // examples for the checkPassword/checkGroup functions
+        //let result = await this.checkPasswordAsync('admin', 'iobroker');
+        //this.log.info('check user admin pw iobroker: ' + result);
+
+        //result = await this.checkGroupAsync('admin', 'admin');
+        //this.log.info('check group user admin group admin: ' + result);
+		
+		await this.setStateAsync('discoveryRunning', { val: false, ack: true });
+		//await this.setStateAsync('discoveryRunning', false, true );
+		//startCameras();
+    }
+	
+    /**
+     * Is called when adapter shuts down - callback has to be called under any circumstances!
+     * @param {() => void} callback
+     */
+    onUnload(callback) {
+        try {
+			clearTimeout(timeoutID);
+			if (isDiscovery) {
+				//adapter && adapter.setState && adapter.setState('discoveryRunning', false, true);
+				this.setStateAsync('discoveryRunning', false, true );
+				isDiscovery = false;
+			}
+            this.log.debug('cleaned everything up...');
+            callback();
+        } catch (e) {
+            callback();
+        }
+    }
+
+    /**
+     * Is called if a subscribed object changes
+     * @param {string} id
+     * @param {ioBroker.Object | null | undefined} obj
+     */
+    onObjectChange(id, obj) {
+        if (obj) {
+            // The object was changed
+            this.log.debug(`object ${id} changed: ${JSON.stringify(obj)}`);
+        } else {
+            // The object was deleted
+            this.log.debug(`object ${id} deleted`);
+        }
+    }
+
+    /**
+     * Is called if a subscribed state changes
+     * @param {string} id
+     * @param {ioBroker.State | null | undefined} state
+     */
+    onStateChange(id, state) {
+        if (state) {
+            // The state was changed
+            this.log.debug(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
+			if (!state.ack){
+				//const devId = adapter.namespace + '.' + id.split('.')[2]; // iobroker device id
+				//this.log.debug("devId = " + devId);
+			}
+        } else {
+            // The state was deleted
+            this.log.debug(`state ${id} deleted`);
+        }
+    }
+
+     /**
+      * Some message was sent to this instance over message box. Used by email, pushover, text2speech, ...
+      * Using this method requires "common.message" property to be set to true in io-package.json
+      * @param {ioBroker.Message} obj
+      */
+    onMessage(obj) {
+     	if (typeof obj === 'object' && obj.message) {
+     		if (obj.command === 'discovery') {
+     			// e.g. send email or pushover or whatever
+     			this.log.debug('Received "discovery" event');
+				discovery(obj.message, function (error, newInstances, devices) {
+					isDiscovery = false;
+					this.log.debug('Discovery finished');
+					//adapter.setState('discoveryRunning', false, true);
+					this.setStateAsync('discoveryRunning', false, true );
+					//adapter.sendTo(obj.from, obj.command, {
+					//	error:        error,
+					//	devices:      devices,
+					//	newInstances: newInstances
+					//}, obj.callback);
+					if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+				});
+     			// Send response in callback if required
+     			//if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+     		}
+			if (obj.command === 'getDevices') {
+				this.log.warn('Received "getDevices" event');
+				getDevices(obj.from, obj.command, obj.message, obj.callback);
+			}
+			if (obj.command === 'deleteDevice') {
+				this.log.warn('Received "deleteDevice" event');
+				deleteDevice(obj.from, obj.command, obj.message, obj.callback);
+			}
+			if (obj.command === 'getSnapshot') {
+				this.log.warn('Received "getSnapshot" event');
+				getSnapshot(obj.from, obj.command, obj.message, obj.callback);
+			}
+			if (obj.command === 'saveFileSnapshot') {
+				this.log.warn('Received "saveFileSnapshot" event');
+				saveFileSnapshot(obj.from, obj.command, obj.message, obj.callback);
+			}
+     	}
+    }
+
+}
+
+// @ts-ignore parent is a valid property on module
+if (module.parent) {
+    // Export the constructor in compact mode
+    /**
+     * @param {Partial<ioBroker.AdapterOptions>} [options={}]
+     */
+    module.exports = (options) => new Onvif(options);
+} else {
+    // otherwise start the instance directly
+    new Onvif();
+}
