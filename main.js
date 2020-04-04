@@ -341,12 +341,12 @@ function discovery(options, callback) {
     isDiscovery = true;
     adapter.setState('discoveryRunning', true, true);
 
-    var start_range = options.start_range,  //'192.168.1.1'
-        end_range = options.end_range || options.start_range,  //'192.168.1.254'
-        port_list = options.ports || '80, 7575, 8000, 8080, 8081',
+    var start_range = options.start_range || adapter.config.start_range,  	//'192.168.1.1'
+        end_range = options.end_range || adapter.config.end_range,  	  	//'192.168.1.254'
+        port_list = options.ports || adapter.config.ports,
         port_list = port_list.split(',').map(item => item.trim()),
-        user = options.user || 'admin',  // 'admin'
-        pass = options.pass || 'admin';  // 'admin'
+        user = options.user || adapter.config.user,  						// 'admin'
+        pass = options.pass || adapter.config.pass;  						// 'admin'
 
     var ip_list = generate_range(start_range, end_range);
     if (ip_list.length === 1 && ip_list[0] === '0.0.0.0') {
@@ -371,6 +371,7 @@ function discovery(options, callback) {
             }, function CamFunc(err) {
                 counter++;
                 if (err) {
+					adapter.log.error(err);
                     if (counter == scanLen) processScannedDevices(devices, callback);
                     return;
                 }
@@ -393,6 +394,7 @@ function discovery(options, callback) {
                 flow.series([
                     function(callback) {
                         cam_obj.getSystemDateAndTime(function(err, date, xml) {
+							if (err) adapter.log.error(err);
 							if (!err) {adapter.log.debug('Device Time   ' + date);}
                             if (!err) got_date = date;
                             callback();
@@ -400,6 +402,7 @@ function discovery(options, callback) {
                     },
                     function(callback) {
                         cam_obj.getDeviceInformation(function(err, info, xml) {
+							if (err) adapter.log.error(err);
 							if (!err) {adapter.log.debug('Manufacturer  ' + info.manufacturer);}
 							if (!err) {adapter.log.debug('Model         ' + info.model);}
 							if (!err) {adapter.log.debug('Firmware      ' + info.firmwareVersion);}
@@ -410,9 +413,7 @@ function discovery(options, callback) {
                     },
 					function(callback) {
 						cam_obj.getCapabilities(function(err, data, xml) {
-							if (err) {
-								adapter.log.debug(err);
-							}
+							if (err) adapter.log.error(err);
 							if (!err && data.events && data.events.WSPullPointSupport && data.events.WSPullPointSupport == true) {
 								adapter.log.debug('Camera supports WSPullPoint');
 								hasEvents = true;
@@ -432,7 +433,7 @@ function discovery(options, callback) {
 						if (hasEvents) {
 							cam_obj.getEventProperties(function(err, data, xml) {
 								if (err) {
-									adapter.log.debug(err);
+									adapter.log.error(err);
 								} else {
 									// Display the available Topics
 									let parseNode = function(node, topicPath) {
@@ -475,9 +476,7 @@ function discovery(options, callback) {
                                 protocol: 'RTSP',
                                 stream: 'RTP-Unicast'
                             }, function(err, stream, xml) {
-								if (err) {
-									adapter.log.error(err);
-								}
+								if (err) adapter.log.error(err);
                                 if (!err) got_live_stream_tcp = stream;
                                 callback();
                             });
@@ -489,6 +488,7 @@ function discovery(options, callback) {
                                 protocol: 'UDP',
                                 stream: 'RTP-Unicast'
                             }, function(err, stream, xml) {
+								if (err) adapter.log.error(err);
                                 if (!err) got_live_stream_udp = stream;
                                 callback();
                             });
@@ -500,6 +500,7 @@ function discovery(options, callback) {
                                 protocol: 'UDP',
                                 stream: 'RTP-Multicast'
                             }, function(err, stream, xml) {
+								if (err) adapter.log.error(err);
                                 if (!err) got_live_stream_multicast = stream;
                                 callback();
                             });
@@ -512,7 +513,7 @@ function discovery(options, callback) {
 								// This callback is executed once we have a list of presets
 								function (err, stream, xml) {
 									if (err) {
-										adapter.log.warn("GetPreset Error " + err);
+										adapter.log.error("GetPreset Error " + err);
 										//return;
 										callback();
 									} else {
@@ -542,18 +543,21 @@ function discovery(options, callback) {
 					},
 					function(callback) {
                         cam_obj.getConfigurations(function(err, data, xml) {
+							if (err) adapter.log.error(err);
                             if (!err) adapter.log.warn("getConfigurations: " +  + JSON.stringify(data));
                             callback();
                         });
                     },
 					function(callback) {
                         cam_obj.getNodes(function(err, data, xml) {
+							if (err) adapter.log.error(err);
                             if (!err) adapter.log.warn("getNodes: " +  + JSON.stringify(data));
                             callback();
                         });
                     },
                     function(callback) {
                         cam_obj.getRecordings(function(err, recordings, xml) {
+							if (err) adapter.log.error(err);
                             if (!err) got_recordings = recordings;
                             callback();
                         });
@@ -569,6 +573,7 @@ function discovery(options, callback) {
                                 protocol: 'RTSP',
                                 recordingToken: got_recordings.recordingToken
                             }, function(err, stream, xml) {
+								if (err) adapter.log.error(err);
                                 if (!err) got_replay_stream = stream;
                                 callback();
                             });
@@ -626,6 +631,7 @@ function processScannedDevices(devices, callback) {
     // check if device is new
     var newInstances = [], currDevs = [];
     adapter.getDevices((err, result) => {
+		if (err) adapter.log.error(err);
         if(result) {
             for (var item in result) {
                 if (result[item]._id) {
@@ -657,6 +663,7 @@ function updateDev(dev_id, dev_name, devData) {
         common: {name: dev_name, data: devData}
     }, {}, function (obj) {
         adapter.getObject(dev_id, function(err, obj) {
+			if (err) adapter.log.error(err);
             if (!err && obj) {
                 // if update
                 adapter.extendObject(dev_id, {
@@ -817,7 +824,7 @@ function main() {
     adapter.subscribeStates('*');
 	
 	adapter.setState('discoveryRunning', { val: false, ack: true });
-	//startCameras();
+	startCameras();
 }
 
 // @ts-ignore parent is a valid property on module
