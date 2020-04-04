@@ -10,12 +10,9 @@
 // you need to create an adapter
 const utils = require('@iobroker/adapter-core'); // Get common adapter utils
 
-//const adapterName = require('./package.json').name.split('.').pop();
-
-//var adapter = new utils.Adapter('onvif');
 const Cam = require('onvif').Cam;
-const flow = require('nimble');
 require('onvif-snapshot');
+const flow = require('nimble');
 const url = require('url');
 const fs = require('fs');
 const request = require('request');
@@ -63,6 +60,7 @@ override(MyCam, function getSnapshotUri(options, callback) {
 function getSnapshot(from, command, message, callback){
     var camId = message.id,
         cam = cameras[camId];
+	adapter.log.debug('getSnapshot. cam: ' + JSON.stringify(cam));
     adapter.log.debug('getSnapshot: ' + JSON.stringify(message));
     if (cam) {
         // get snapshot
@@ -223,11 +221,11 @@ function startCameras(){
                     adapter.log.debug('uri: ' + JSON.stringify(cam.uri));
                     cameras[dev._id] = cam;
                     cam.getEventProperties(function(err, info) {
-                        if (err) { adapter.log.error(err); }
+                        if (err) { adapter.log.error("startCameras.getEventProperties: " + err); }
                         else {
                             adapter.log.debug("getEventProperties:   " + JSON.stringify(info));
                             cam.getEventServiceCapabilities(function(err, info) {
-                                if (err) { adapter.log.error(err); }
+                                if (err) { adapter.log.error("startCameras.getEventServiceCapabilities: " + err); }
                                 adapter.log.debug("getEventServiceCapabilities:   " + JSON.stringify(info));
                                 if (info != undefined){  // || (info === 'undefined')
                                     if (info.hasOwnProperty('WSPullPointSupport')){
@@ -371,7 +369,7 @@ function discovery(options, callback) {
             }, function CamFunc(err) {
                 counter++;
                 if (err) {
-					adapter.log.error(err);
+					adapter.log.error("CamFunc: " + err);
                     if (counter == scanLen) processScannedDevices(devices, callback);
                     return;
                 }
@@ -394,7 +392,7 @@ function discovery(options, callback) {
                 flow.series([
                     function(callback) {
                         cam_obj.getSystemDateAndTime(function(err, date, xml) {
-							if (err) adapter.log.error(err);
+							if (err) adapter.log.error("getSystemDateAndTime: " + err);
 							if (!err) {adapter.log.debug('Device Time   ' + date);}
                             if (!err) got_date = date;
                             callback();
@@ -402,7 +400,7 @@ function discovery(options, callback) {
                     },
                     function(callback) {
                         cam_obj.getDeviceInformation(function(err, info, xml) {
-							if (err) adapter.log.error(err);
+							if (err) adapter.log.error("getDeviceInformation: " + err);
 							if (!err) {adapter.log.debug('Manufacturer  ' + info.manufacturer);}
 							if (!err) {adapter.log.debug('Model         ' + info.model);}
 							if (!err) {adapter.log.debug('Firmware      ' + info.firmwareVersion);}
@@ -413,7 +411,7 @@ function discovery(options, callback) {
                     },
 					function(callback) {
 						cam_obj.getCapabilities(function(err, data, xml) {
-							if (err) adapter.log.error(err);
+							if (err) adapter.log.error("getCapabilities: " + err);
 							if (!err && data.events && data.events.WSPullPointSupport && data.events.WSPullPointSupport == true) {
 								adapter.log.debug('Camera supports WSPullPoint');
 								hasEvents = true;
@@ -433,7 +431,7 @@ function discovery(options, callback) {
 						if (hasEvents) {
 							cam_obj.getEventProperties(function(err, data, xml) {
 								if (err) {
-									adapter.log.error(err);
+									adapter.log.error("getEventProperties: " + err);
 								} else {
 									// Display the available Topics
 									let parseNode = function(node, topicPath) {
@@ -476,7 +474,7 @@ function discovery(options, callback) {
                                 protocol: 'RTSP',
                                 stream: 'RTP-Unicast'
                             }, function(err, stream, xml) {
-								if (err) adapter.log.error(err);
+								if (err) adapter.log.error("getStreamUri (RTSP): " + err);
                                 if (!err) got_live_stream_tcp = stream;
                                 callback();
                             });
@@ -488,7 +486,7 @@ function discovery(options, callback) {
                                 protocol: 'UDP',
                                 stream: 'RTP-Unicast'
                             }, function(err, stream, xml) {
-								if (err) adapter.log.error(err);
+								if (err) adapter.log.error("getStreamUri (UDP): " + err);
                                 if (!err) got_live_stream_udp = stream;
                                 callback();
                             });
@@ -500,7 +498,7 @@ function discovery(options, callback) {
                                 protocol: 'UDP',
                                 stream: 'RTP-Multicast'
                             }, function(err, stream, xml) {
-								if (err) adapter.log.error(err);
+								if (err) adapter.log.error("getStreamUri (RTP-Multicast): " + err);
                                 if (!err) got_live_stream_multicast = stream;
                                 callback();
                             });
@@ -543,21 +541,21 @@ function discovery(options, callback) {
 					},
 					function(callback) {
                         cam_obj.getConfigurations(function(err, data, xml) {
-							if (err) adapter.log.error(err);
+							if (err) adapter.log.error("getConfigurations: " + err);
                             if (!err) adapter.log.warn("getConfigurations: " +  + JSON.stringify(data));
                             callback();
                         });
                     },
 					function(callback) {
                         cam_obj.getNodes(function(err, data, xml) {
-							if (err) adapter.log.error(err);
+							if (err) adapter.log.error("getNodes: " + err);
                             if (!err) adapter.log.warn("getNodes: " +  + JSON.stringify(data));
                             callback();
                         });
                     },
                     function(callback) {
                         cam_obj.getRecordings(function(err, recordings, xml) {
-							if (err) adapter.log.error(err);
+							if (err) adapter.log.error("getRecordings: " + err);
                             if (!err) got_recordings = recordings;
                             callback();
                         });
@@ -573,7 +571,7 @@ function discovery(options, callback) {
                                 protocol: 'RTSP',
                                 recordingToken: got_recordings.recordingToken
                             }, function(err, stream, xml) {
-								if (err) adapter.log.error(err);
+								if (err) adapter.log.error("getReplayUri: " + err);
                                 if (!err) got_replay_stream = stream;
                                 callback();
                             });
@@ -631,7 +629,7 @@ function processScannedDevices(devices, callback) {
     // check if device is new
     var newInstances = [], currDevs = [];
     adapter.getDevices((err, result) => {
-		if (err) adapter.log.error(err);
+		if (err) adapter.log.error("processScannedDevices: " + err);
         if(result) {
             for (var item in result) {
                 if (result[item]._id) {
@@ -663,7 +661,7 @@ function updateDev(dev_id, dev_name, devData) {
         common: {name: dev_name, data: devData}
     }, {}, function (obj) {
         adapter.getObject(dev_id, function(err, obj) {
-			if (err) adapter.log.error(err);
+			if (err) adapter.log.error("updateDev. getObject: " + err);
             if (!err && obj) {
                 // if update
                 adapter.extendObject(dev_id, {
@@ -775,38 +773,39 @@ function startAdapter(options) {
          	if (typeof obj === 'object' && obj.message) {
          		if (obj.command === 'discovery') {
 					// e.g. send email or pushover or whatever
-					this.log.debug('Received "discovery" event');
+					adapter.log.debug('Received "discovery" event');
 					discovery(obj.message, function (error, newInstances, devices) {
 						isDiscovery = false;
-						this.log.debug('Discovery finished');
+						adapter.log.debug('Discovery finished');
 						adapter.setState('discoveryRunning', { val: false, ack: true });
-						//adapter.sendTo(obj.from, obj.command, {
-						//	error:        error,
-						//	devices:      devices,
-						//	newInstances: newInstances
-						//}, obj.callback);
-						if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+						if (obj.callback){
+							adapter.sendTo(obj.from, obj.command, {
+								error:        error,
+								devices:      devices,
+								newInstances: newInstances
+							}, obj.callback);
+						}
 					});
 				}
 				if (obj.command === 'getDevices') {
-					this.log.warn('Received "getDevices" event');
+					adapter.log.warn('Received "getDevices" event');
 					getDevices(obj.from, obj.command, obj.message, obj.callback);
-					if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
 				}
 				if (obj.command === 'deleteDevice') {
-					this.log.warn('Received "deleteDevice" event');
+					adapter.log.warn('Received "deleteDevice" event');
 					deleteDevice(obj.from, obj.command, obj.message, obj.callback);
-					if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
 				}
 				if (obj.command === 'getSnapshot') {
-					this.log.warn('Received "getSnapshot" event');
+					adapter.log.warn('Received "getSnapshot" event');
 					getSnapshot(obj.from, obj.command, obj.message, obj.callback);
-					if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
 				}
 				if (obj.command === 'saveFileSnapshot') {
-					this.log.warn('Received "saveFileSnapshot" event');
+					adapter.log.warn('Received "saveFileSnapshot" event');
 					saveFileSnapshot(obj.from, obj.command, obj.message, obj.callback);
-					if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
 				}
          	}
         },
