@@ -92,11 +92,11 @@
         ]
     },
     "native": {
-        "start_range": '192.168.1.1',
-		"end_range": '192.168.1.254',
-        "ports": '80, 7575, 8000, 8080, 8081',
-        "user": 'admin',
-		"pass": 'admin'
+        "start_range": "192.168.1.1",
+		"end_range": "192.168.1.254",
+        "ports": "80, 7575, 8000, 8080, 8081",
+        "user": "admin",
+		"pass": "admin"
     },
     "objects": [],
     "instanceObjects": [
