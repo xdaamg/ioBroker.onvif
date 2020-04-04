@@ -84,9 +84,7 @@
         "type": "infrastructure",
 		"compact": true,
 		"materialize": true,
-		"materializeTab": true,
 		"messagebox": true,
-		"stopBeforeUpdate": true,
 		"dependencies": [
             {
                 "js-controller": ">=2.0.0"
