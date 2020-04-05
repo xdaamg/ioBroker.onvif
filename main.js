@@ -9,9 +9,8 @@
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
 const utils = require('@iobroker/adapter-core'); // Get common adapter utils
-
+const http = require('http');
 const Cam = require('onvif').Cam;
-require('onvif-snapshot');
 const flow = require('nimble');
 const url = require('url');
 const fs = require('fs');
@@ -57,55 +56,79 @@ override(MyCam, function getSnapshotUri(options, callback) {
     });
 });
 
+function httpGet(url, username, password, callback){
+	const options = {
+		auth: username + ":" + password
+	};
+	
+	const req = http
+	.get(url, options, (res) => {
+		let data = [];
+		res.on('data', (chunk) => {
+			data.push(chunk);
+		});
+		res.on('end', () => {
+			const img = {
+				mimeType: "image/jpeg",
+				rawImage: Buffer.concat(data)
+			};
+			callback(img);
+		});
+	})
+	.on('error', (err) => {
+	  adapter.log.error('httpGet. Error: ' + JSON.stringify(err));
+	});
+	req.end();	
+}
+
 function getSnapshot(from, command, message, callback){
     var camId = message.id,
         cam = cameras[camId];
-	adapter.log.debug('getSnapshot. cam: ' + JSON.stringify(cam));
-    adapter.log.debug('getSnapshot: ' + JSON.stringify(message));
+
     if (cam) {
         // get snapshot
-        cam.getSnapshot((err, data) => {
-            if(err) throw err;
-            adapter.log.debug(JSON.stringify(data));
-            adapter.sendTo(from, command, data, callback);
+        cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
+			if (err) adapter.log.error("getSnapshot. Error: " + err);
+			if (!err){
+				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
+				httpGet(stream.uri, cam.username, cam.password, (img) => {
+					adapter.sendTo(from, command, img, callback);
+				});
+			}
         });
     }
 }
 
 function saveFileSnapshot(from, command, message, callback){
-    var camId = message.id,
-    cam = cameras[camId];
-    adapter.log.debug('saveFileSnapshot: ' + JSON.stringify(message));
+    let camId = message.id;
+    let cam = cameras[camId];
+	
     if (cam) {
         // get snapshot
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
-            adapter.log.debug('getSnapshotUri: - ' + JSON.stringify(stream));
-            saveImage(stream.uri, cam.username, cam.password, message.file, (data) => {
-                adapter.sendTo(from, command, data, callback);
-            });
+			if (err) adapter.log.error("saveFileSnapshot: " + err);
+			if (!err){
+				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
+				saveImage(stream.uri, cam.username, cam.password, message.file, (img) => {
+					adapter.sendTo(from, command, img, callback);
+				});
+			}
         });
     }
 }
 
-function saveImage(stream, username, password, file, callback){
+function saveImage(url, username, password, file, callback){
     let picStream;
-    request
-		.get(stream, {
-			'auth': {
-				'user': username,
-				'pass': password,
-				'sendImmediately': false
-			}
-		})
-		.on('error', function(err) {
-			adapter.log.error(err)
-			callback(err);
-		})
-		.pipe(picStream = fs.createWriteStream(file))
-    picStream.on('close', function() {
-        adapter.log.debug('Image saved');
-        callback("OK");
-    });
+	
+	httpGet(url, username, password, (img) => {
+		picStream = fs.createWriteStream(file);
+		picStream.write(img);
+		picStream.on('close', function() {
+			adapter.log.debug('Image saved');
+			callback("OK");
+		});
+		picStream.end();
+	});
 }
 
 function parseEvents(devId, events){

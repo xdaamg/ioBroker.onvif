@@ -33,7 +33,6 @@
   "dependencies": {
     "onvif": "^0.6.2",
     "nimble": "^0.0.2",
-    "onvif-snapshot": "^1.0.2",
     "@iobroker/adapter-core": "^2.2.1"
   },
   "devDependencies": {
