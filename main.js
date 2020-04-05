@@ -14,7 +14,6 @@ const Cam = require('onvif').Cam;
 const flow = require('nimble');
 const url = require('url');
 const fs = require('fs');
-const request = require('request');
 const inherits = require('util').inherits;
 
 /**
