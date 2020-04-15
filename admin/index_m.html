@@ -25,6 +25,8 @@
 <script type="text/javascript">
     var namespace = 'onvif.' + instance,
         namespaceLen = namespace.length;
+	var Snapshot = [];
+	
     // the function loadSettings has to exist ...
     function load(settings, onChange) {
 		// example: select elements with id=key and class=value and insert value
@@ -122,6 +124,10 @@
                 '</div>'+
                 '</div>'+
                 '</div>';
+			Snapshot.push({
+				id: id,
+				img: false
+			});
         return card;
     }
 
@@ -179,6 +185,10 @@
                 if (msg.error) {
                     showMessage(msg.error.code, _('Error'), 'alert');
                 } else {
+					Snapshot.forEach((idCam, index) => {
+						Snapshot.splice(index);
+					});
+					console.log('Delete Snapshot: ' + JSON.stringify(Snapshot));
                     getDevices();
                 }
             }
@@ -240,15 +250,24 @@
     }
 
     function getSnapshot(id){
-        sendTo(null, 'getSnapshot', {id: id}, function (msg) {
-            if (msg) {
-                if (msg.error) {
-                    showMessage(msg.error, _('Error'), 'alert');
-                } else {
-                    $("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg));
-                }
-            }
-        });
+		console.log('id = ' + id);
+		Snapshot.forEach(idCam => {
+			console.log('idCam = ' + JSON.stringify(idCam));
+			if ((idCam.id === id)&&(!idCam.img)){
+				idCam.img = true;
+				sendTo(null, 'getSnapshot', {id: id}, function (msg) {
+					if (msg) {
+						if (msg.error) {
+							idCam.img = false;
+							showMessage(msg.error, _('Error'), 'alert');
+						} else {
+							console.log('Recived id.img = ' + id);
+							$("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg));
+						}
+					}
+				});
+			}
+		});
     }
 </script>
 </head>

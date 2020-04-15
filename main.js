@@ -16,6 +16,8 @@ const url = require('url');
 const fs = require('fs');
 const inherits = require('util').inherits;
 
+let cam1, cam2;
+
 /**
  * The adapter instance
  * @type {ioBroker.Adapter}
@@ -23,9 +25,9 @@ const inherits = require('util').inherits;
 let adapter;
 
 let isDiscovery = false;
-let timeoutID;
-
+let isRunEvents = false;
 let cameras = {};
+let timeoutID;
 
 function override(child, fn) {
     child.prototype[fn.name] = fn;
@@ -39,8 +41,8 @@ function MyCam(options, callback) {
 inherits(MyCam, Cam);
 
 
-override(MyCam, function getSnapshotUri(options, callback) {
-    getSnapshotUri.inherited.call(this, options, function(err, res){
+override(MyCam, function getSnapshotUri(options, callback){
+    getSnapshotUri.inherited.call(this, options, (err, res) => {
         if(!err) {
             const parsedAddress = url.parse(res.uri);
             // If host for service and default host dirrers, also if preserve address property set
@@ -71,6 +73,7 @@ function httpGet(url, username, password, callback){
 				mimeType: "image/jpeg",
 				rawImage: Buffer.concat(data)
 			};
+			adapter.log.error('httpGet: ' + JSON.stringify(img));
 			callback(img);
 		});
 	})
@@ -80,36 +83,42 @@ function httpGet(url, username, password, callback){
 	req.end();	
 }
 
-function getSnapshot(from, command, message, callback){
-    var camId = message.id,
-        cam = cameras[camId];
-
+function getSnapshot(message, callback){
+    let cam = cameras[message.id];
+	adapter.log.debug('getSnapshot. message.id: ' + JSON.stringify(message.id));
+	adapter.log.debug('getSnapshot. cam: ' + JSON.stringify(cam));
     if (cam) {
         // get snapshot
+		adapter.log.debug('getSnapshot. 2message.id: ' + JSON.stringify(message.id));
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
-			if (err) adapter.log.error("getSnapshot. Error: " + err);
+			if (err) {
+				adapter.log.error("getSnapshot. Error: " + err);
+				callback(err, null);
+			}
 			if (!err){
 				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
 				httpGet(stream.uri, cam.username, cam.password, (img) => {
-					adapter.sendTo(from, command, img, callback);
+					callback(null, img);
 				});
 			}
         });
     }
 }
 
-function saveFileSnapshot(from, command, message, callback){
-    let camId = message.id;
-    let cam = cameras[camId];
+function saveFileSnapshot(message, callback){
+    let cam = cameras[message.id];
 	
     if (cam) {
         // get snapshot
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
-			if (err) adapter.log.error("saveFileSnapshot: " + err);
+			if (err){
+				adapter.log.error("saveFileSnapshot: " + err);
+				callback(err, null);
+			}
 			if (!err){
 				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
-				saveImage(stream.uri, cam.username, cam.password, message.file, (img) => {
-					adapter.sendTo(from, command, img, callback);
+				saveImage(stream.uri, cam.username, cam.password, message.file, img => {
+					callback(null, img);
 				});
 			}
         });
@@ -129,7 +138,7 @@ function saveImage(url, username, password, file, callback){
 		picStream.end();
 	});
 }
-
+/*
 function parseEvents(devId, events){
 var value;
 	try { 
@@ -178,101 +187,209 @@ var value;
 		adapter.log.debug("Error:   " + e);  
 	}
 }
-
-function camEvents(devId, cam) {
-  try {
-    cam.createPullPointSubscription(function(err, data) {
-        if (err) {
-			//let errTimeout = 200;
-            adapter.log.error("createPullPointSubscription: " + err);
-            //if (err.indexOf('Network timeout') !==-1){
-            //    errTimeout = 60000; // 1 min
-            //    adapter.log.error(devId + " Network timeout");
-            //    updateState(devId, 'connection', false, {"type": "boolean", "read": true, "write": false});
-            //}
-            //setTimeout(function () {
-            //    adapter.log.debug("Restart createPullPointSubscription");
-            //    camEvents(devId, cam); // restart createPullPointSubscription
-            //}, 200); 
-        } else {
-            adapter.log.debug("createPullPointSubscription:   " + JSON.stringify(data));
-            updateState(devId, 'connection', true, {"type": "boolean", "read": true, "write": false});
-            timeoutID = setTimeout(function tick() {
-                cam.pullMessages({timeout: 60000, messageLimit: 1}, function(err, events) {
-                    if (err) {
-                        adapter.log.debug("pullMessages: " + err + ". Resubscribe to events");
-                        clearTimeout(timeoutID);
-                        camEvents(devId, cam);
-                    } else {
-                        adapter.log.debug("Events:   " + JSON.stringify(events));
-                        parseEvents(devId, events);     
-                        timeoutID = setTimeout(tick, 200);
-                    }
-                });
-            }, 200);
-        }
-    });
-    
-  } catch (e) {
-      //callback();
-      adapter.log.debug("Error:   " + e);  
-  }
+*/
+async function getDevices(){
+	return new Promise((resolve, reject) => {
+		adapter.getDevices((err, result) => {
+			if (err) reject(err);
+			adapter.log.debug('getDevices: ' + JSON.stringify(result));
+			resolve(result);
+		});
+	});
 }
 
+const classCam = item => new Promise((resolve) => {
+	adapter.log.debug('classCam: item = ' + JSON.stringify(item));
+	let devData = item.common.data,
+		cam;
+	cam = new MyCam({
+		hostname: devData.ip,
+		port: devData.port,
+		username: devData.user,
+		password: devData.pass,
+		timeout : 5000,
+		preserveAddress: true
+	},(err) => {
+		if (!err) {
+			cameras[item._id] = cam;
+			adapter.log.debug('classCam. Camera/NVT: ' + JSON.stringify(cameras));
+			return resolve();
+		} else {
+			adapter.log.error(`classCam. Camera/NVT: ${JSON.stringify(devData.name)} ${err}`);
+			return resolve();
+		}
+	});
+});
 
-function startCameras(){
-    cameras = {};
+async function setCameras(devices){
+	cameras = {};
+    adapter.log.debug('setCameras: ' + JSON.stringify(devices));
+	return Promise.all(devices.map(async(item) => {
+		await classCam(item);
+	}));
+}
+
+async function startCameras(){
     adapter.log.debug('startCameras');
     try {
-    adapter.getDevices((err, result) => {
-        adapter.log.debug('startCameras: ' + JSON.stringify(result));
-        for (var item in result) {
-            let dev = result[item],
-                devData = dev.common.data,
-                cam;
-            cam = new MyCam({
-                hostname: devData.ip,
-                port: devData.port,
-                username: devData.user,
-                password: devData.pass,
-                //timeout : 30000,
-                preserveAddress: true
-            }, function(err) {
-                if (!err) {
-                    adapter.log.debug('capabilities: ' + JSON.stringify(cam.capabilities));
-                    adapter.log.debug('uri: ' + JSON.stringify(cam.uri));
-                    cameras[dev._id] = cam;
-                    cam.getEventProperties(function(err, info) {
-                        if (err) { adapter.log.error("startCameras.getEventProperties: " + err); }
-                        else {
-                            adapter.log.debug("getEventProperties:   " + JSON.stringify(info));
-                            cam.getEventServiceCapabilities(function(err, info) {
-                                if (err) { adapter.log.error("startCameras.getEventServiceCapabilities: " + err); }
-                                adapter.log.debug("getEventServiceCapabilities:   " + JSON.stringify(info));
-                                if (info != undefined){  // || (info === 'undefined')
-                                    if (info.hasOwnProperty('WSPullPointSupport')){
-                                        if (info.WSPullPointSupport) {
-                                            camEvents(dev._id, cam);
-                                        } else adapter.log.warn('Events. Service Capabilities. PullPointSupport = false');
-                                    } else adapter.log.warn('Events. Service Capabilities. Pull Point not support!');
-                                } else adapter.log.warn('Events. Service Capabilities: undefined');
-                            });
-                        } 
-                    });
-                } else {
-                    adapter.log.debug('startCameras err=' + err +' dev='+ JSON.stringify(devData));
-                    updateState(dev._id, 'connection', false, {"type": "boolean", "read": true, "write": false});
-                    setTimeout(function () {
-                        adapter.log.debug("Restart function 'startCameras'");
-                        startCameras(); // restart startCameras
-                    }, 3000000); // 10 min
-                }
-            });
+		let devices = await getDevices();
+		await setCameras(devices);
+		adapter.log.debug('startCameras. cameras: ' + JSON.stringify(cameras));
+		if (Object.keys(cameras).length == 0){
+			adapter.log.warn("startCameras: Camera/NVT unavailables");
+			timeoutID = setTimeout(startCameras, 600000); // Restart adapter 10 min
+		} else for (let item of devices) {
+			let dev = devices[item],
+            devData = dev.common.data,
+            cam;
+			if (devData.events === true) {
+				cam = cameras[dev._id];
+				// message subscription
+				cam.createPullPointSubscription((err, data) => {
+					if (err) {
+						adapter.log.error("createPullPointSubscription: " + err);
+						updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
+					} else {
+						adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
+						updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
+						isRunEvents = true;
+						setTimeout(function tick() {
+							cam.pullMessages({timeout: 60000, messageLimit: 1}, (err, events) => {
+								if (err) {
+									adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
+	
+									if (isRunEvents) setTimeout(tick, 1000);
+								} else {
+									adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
+									camEvents(devData.id, events.notificationMessage);											
+									if (isRunEvents) setTimeout(tick, 200);
+								}
+							});
+						}, 200);
+					}
+				});
+			} else {
+				adapter.log.warn(`startCameras. This Camera/NVT ${devData.id} does not support PullPoint Events`);
+			}
         }
-    });
     } catch (e) {
-      adapter.log.debug("Error 2:   " + e);  
-  }
+		adapter.log.error("startCameras: " + e);  
+	}
+}
+
+function camEvents(devId, camMessage) {
+	// Extract Event Details
+	// Events have a Topic
+	// Events have (optionally) a Source, a Key and Data fields
+	// The Source,Key and Data fields can be single items or an array of items
+	// The Source,Key and Data fields can be of type SimpleItem or a Complex Item
+
+	//    - Topic
+	//    - Message/Message/$
+	//    - Message/Message/Source...
+	//    - Message/Message/Key...
+	//    - Message/Message/Data/SimpleItem/[index]/$/name   (array of items)
+	// OR - Message/Message/Data/SimpleItem/$/name   (single item)
+	//    - Message/Message/Data/SimpleItem/[index]/$/value   (array of items)
+	// OR - Message/Message/Data/SimpleItem/$/value   (single item)
+	adapter.log.debug('camEvents. camMessage = ' + JSON.stringify(camMessage));
+	let eventTopic = camMessage.topic._
+	eventTopic = stripNamespaces(eventTopic);
+
+	let eventTime = camMessage.message.message.$.UtcTime;
+
+	let eventProperty = camMessage.message.message.$.PropertyOperation;
+	// Supposed to be Initialized, Deleted or Changed but missing/undefined on the Avigilon 4 channel encoder
+
+	// Only handle simpleItem
+	// Only handle one 'source' item
+	// Ignore the 'key' item  (nothing I own produces it)
+	// Handle all the 'Data' items
+
+	// SOURCE (Name:Value)
+	let sourceName = null;
+	let sourceValue = null;
+	if (camMessage.message.message.source && camMessage.message.message.source.simpleItem) {
+		if (Array.isArray(camMessage.message.message.source.simpleItem)) {
+			sourceName = camMessage.message.message.source.simpleItem[0].$.Name;
+			sourceValue = camMessage.message.message.source.simpleItem[0].$.Value;
+			adapter.log.debug("WARNING: Only processing first Event Source item");
+		} else {
+			sourceName = camMessage.message.message.source.simpleItem.$.Name;
+			sourceValue = camMessage.message.message.source.simpleItem.$.Value;
+		}
+	} else {
+		sourceName = null;
+		sourceValue = null;
+		adapter.log.debug("WARNING: Source does not contain a simpleItem");
+	}
+	
+	//KEY
+	if (camMessage.message.message.key) {
+		adapter.log.debug('NOTE: Event has a Key');
+	}
+
+	// DATA (Name:Value)
+	if (camMessage.message.message.data && camMessage.message.message.data.simpleItem) {
+		if (Array.isArray(camMessage.message.message.data.simpleItem)) {
+			for (let x  = 0; x < camMessage.message.message.data.simpleItem.length; x++) {
+				let dataName = camMessage.message.message.data.simpleItem[x].$.Name;
+				let dataValue = camMessage.message.message.data.simpleItem[x].$.Value;
+				processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
+			}
+		} else {
+			let dataName = camMessage.message.message.data.simpleItem.$.Name;
+			let dataValue = camMessage.message.message.data.simpleItem.$.Value;
+			processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
+		}
+	} else if (camMessage.message.message.data && camMessage.message.message.data.elementItem) {
+		adapter.log.debug("WARNING: Data contain an elementItem");
+		let dataName = 'elementItem';
+		let dataValue = JSON.stringify(camMessage.message.message.data.elementItem);
+		processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
+	} else {
+		adapter.log.debug("WARNING: Data does not contain a simpleItem or elementItem")
+		let dataName = null;
+		let dataValue = null;
+		processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
+	}	
+	
+}
+
+function stripNamespaces(topic) {
+    // example input :-   tns1:MediaControl/tnsavg:ConfigurationUpdateAudioEncCfg 
+    // Split on '/'
+    // For each part, remove any namespace
+    // Recombine parts that were split with '.'
+    let output = '';
+    let parts = topic.split('/');
+    for (let index = 0; index < parts.length; index++) {
+        let stringNoNamespace = parts[index].split(':').pop() // then return the last item in the array
+        if (output.length == 0) {
+            output += stringNoNamespace;
+        } else {
+            output += '.' + stringNoNamespace;
+        }
+    }
+    return output;
+}
+
+function processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue) {
+	let output = devId;
+	output += `.EVENT: ${eventTime.toJSON()} ${eventTopic}`
+	if (typeof(eventProperty) !== "undefined") {
+		output += ` PROP:${eventProperty}`;
+	}
+	if (typeof(sourceName) !== "undefined" && typeof(sourceValue) !== "undefined") {
+		output += ` SRC:${sourceName}=${sourceValue}`;
+	}
+	if (typeof(dataName) !== "undefined" && typeof(dataValue) !== "undefined") {
+		output += ` DATA:${dataName}=${dataValue}`;
+	}
+	
+	let nameObj = 'message.' + eventTopic.toLowerCase() + '.' + dataName;
+	updateState(devId, nameObj, dataValue, {"type": typeof(dataValue), "read": true, "write": false});
+	adapter.log.debug(output);
 }
 
 function updateStateWithTimeout(dev_id, name, value, common, timeout, outValue) {
@@ -294,19 +411,23 @@ function updateState(devId, name, value, common) {
     });
 }
 
-function deleteDevice(from, command, msg, callback) {
+function deleteDevice(msg, callback) {
     var id = msg.id,
         dev_id = id.replace(adapter.namespace+'.', '');
-    adapter.log.error('delete device '+dev_id);
-    adapter.deleteDevice(dev_id, function(){
-        adapter.sendTo(from, command, {}, callback);
+    adapter.log.warn('delete device '+dev_id);
+	clearTimeout(timeoutID);
+    adapter.deleteDevice(dev_id, () => {
+		startCameras();
+		setTimeout(callback(), 300);
     });
 }
 
 
-function getDevices(from, command, message, callback){
+function getDevicesAdmin(callback){
     var rooms;
-    adapter.getEnums('enum.rooms', function (err, list) {
+	
+	adapter.log.debug('getDevicesAdmin');
+    adapter.getEnums('enum.rooms', (err, list) => {
         if (!err){
             rooms = list['enum.rooms'];
         }
@@ -328,25 +449,14 @@ function getDevices(from, command, message, callback){
                         cnt++;
                         devices.push(devInfo);
                         if (cnt==len) {
-                            adapter.log.debug('getDevices result: ' + JSON.stringify(devices));
-                            adapter.sendTo(from, command, devices, callback);
+                            adapter.log.debug('getDevicesAdmin result: ' + JSON.stringify(devices));
+							callback(devices);
                         }
-                        // adapter.getState(result[item]._id+'.paired', function(err, state){
-                        //     cnt++;
-                        //     if (state) {
-                        //         devInfo.paired = state.val;
-                        //     }
-                        //     devices.push(devInfo);
-                        //     if (cnt==len) {
-                        //         adapter.log.info('getDevices result: ' + JSON.stringify(devices));
-                        //         adapter.sendTo(from, command, devices, callback);
-                        //     }
-                        // });
                     }
                 }
                 if (len == 0) {
-                    adapter.log.warn('getDevices result: ' + JSON.stringify(devices));
-                    adapter.sendTo(from, command, devices, callback);
+                    adapter.log.debug('getDevicesAdmin result: ' + JSON.stringify(devices));
+                    callback(devices);
                 }
             }
         });
@@ -355,29 +465,30 @@ function getDevices(from, command, message, callback){
 
 
 function discovery(options, callback) {
+  try{
     if (isDiscovery) {
         return callback && callback('Yet running');
     }
     isDiscovery = true;
     adapter.setState('discoveryRunning', true, true);
 
-    var start_range = options.start_range || adapter.config.start_range,  	//'192.168.1.1'
+    let start_range = options.start_range || adapter.config.start_range,  	//'192.168.1.1'
         end_range = options.end_range || adapter.config.end_range,  	  	//'192.168.1.254'
-        port_list = options.ports || adapter.config.ports,
-        port_list = port_list.split(',').map(item => item.trim()),
-        user = options.user || adapter.config.user,  						// 'admin'
+        port_list = options.ports || adapter.config.ports;
+        port_list = port_list.split(',').map(item => item.trim());
+    let user = options.user || adapter.config.user,  						// 'admin'
         pass = options.pass || adapter.config.pass;  						// 'admin'
 
-    var ip_list = generate_range(start_range, end_range);
+    let ip_list = generate_range(start_range, end_range);
     if (ip_list.length === 1 && ip_list[0] === '0.0.0.0') {
         ip_list = [options.start_range];
     }
-
-    var devices = [], counter = 0, scanLen = ip_list.length * port_list.length;
-
+	
+    let devices = [], counter = 0, scanLen = ip_list.length * port_list.length;
+	
     // try each IP address and each Port
-    ip_list.forEach(function(ip_entry) {
-        port_list.forEach(function(port_entry) {
+    ip_list.forEach(ip_entry => {
+        port_list.forEach(port_entry => {
 
             adapter.log.debug(ip_entry + ' ' + port_entry);
 
@@ -392,308 +503,371 @@ function discovery(options, callback) {
                 counter++;
                 if (err) {
 					adapter.log.error("CamFunc: " + err);
-                    if (counter == scanLen) processScannedDevices(devices, callback);
-                    return;
-                }
-
-                let cam_obj = this;
-
-                let got_date;
-                let got_info;
-                let got_live_stream_tcp;
-                let got_live_stream_udp;
-                let got_live_stream_multicast;
-                let got_recordings;
-                let got_replay_stream;
-				let hasEvents = false;
-				let hasTopics = false;
-
-                // Use Nimble to execute each ONVIF function in turn
-                // This is used so we can wait on all ONVIF replies before
-                // writing to the console
-                flow.series([
-                    function(callback) {
-                        cam_obj.getSystemDateAndTime(function(err, date, xml) {
-							if (err) adapter.log.error("getSystemDateAndTime: " + err);
-							if (!err) {adapter.log.debug('Device Time   ' + date);}
-                            if (!err) got_date = date;
-                            callback();
-                        });
-                    },
-                    function(callback) {
-                        cam_obj.getDeviceInformation(function(err, info, xml) {
-							if (err) adapter.log.error("getDeviceInformation: " + err);
-							if (!err) {adapter.log.debug('Manufacturer  ' + info.manufacturer);}
-							if (!err) {adapter.log.debug('Model         ' + info.model);}
-							if (!err) {adapter.log.debug('Firmware      ' + info.firmwareVersion);}
-							if (!err) {adapter.log.debug('Serial Number ' + info.serialNumber);}
-                            if (!err) got_info = info;
-                            callback();
-                        });
-                    },
-					function(callback) {
-						cam_obj.getCapabilities(function(err, data, xml) {
-							if (err) adapter.log.error("getCapabilities: " + err);
-							if (!err && data.events && data.events.WSPullPointSupport && data.events.WSPullPointSupport == true) {
-								adapter.log.debug('Camera supports WSPullPoint');
-								hasEvents = true;
-							} else {
-								adapter.log.debug('Camera does not show WSPullPoint support, but trying anyway');
-								// Have an Axis cameras that says False to WSPullPointSuppor but supports it anyway
-								hasEvents = true; // Hack for Axis cameras
-							}
-
-							if (hasEvents == false) {
-								adapter.log.debug('This camera/NVT does not support PullPoint Events');
-							}
-							callback();
+					callback(err);
+					/*if (counter == scanLen) processScannedDevices(devices, cam_obj, sub_obj)
+						.then(result => {
+							adapter.log.warn('processScannedDevices DONE');
+							return result;
 						})
-					},
-					function(callback) {
-						if (hasEvents) {
-							cam_obj.getEventProperties(function(err, data, xml) {
-								if (err) {
-									adapter.log.error("getEventProperties: " + err);
+						.catch(error => {
+							return error;
+						});*/
+                } else {
+					let cam_obj = this;
+					adapter.log.warn('cam_obj: ' + JSON.stringify(cam_obj));
+					let sub_obj = [];
+					let got_date;
+					let got_info;
+					let got_live_stream_tcp;
+					let got_live_stream_udp;
+					let got_live_stream_multicast;
+					let got_recordings;
+					let got_replay_stream;
+					let hasEvents = false;
+					let hasTopics = false;
+
+					// Use Nimble to execute each ONVIF function in turn
+					// This is used so we can wait on all ONVIF replies before
+					// writing to the console
+					flow.series([
+						function(callback) {
+							cam_obj.getSystemDateAndTime((err, date, xml) => {
+								if (err) adapter.log.error(cam_obj.hostname + " getSystemDateAndTime: " + err);
+								if (!err) {adapter.log.debug(cam_obj.hostname + ' Device Time   ' + date);}
+								if (!err) got_date = date;
+								callback();
+							});
+						},
+						function(callback) {
+							cam_obj.getDeviceInformation((err, info, xml) => {
+								if (err) adapter.log.error(cam_obj.hostname + " getDeviceInformation: " + err);
+								if (!err) {adapter.log.debug(cam_obj.hostname + ' Manufacturer  ' + info.manufacturer);}
+								if (!err) {adapter.log.debug('Model         ' + info.model);}
+								if (!err) {adapter.log.debug('Firmware      ' + info.firmwareVersion);}
+								if (!err) {adapter.log.debug('Serial Number ' + info.serialNumber);}
+								if (!err) got_info = info;
+								callback();
+							});
+						},
+						function(callback) {
+							cam_obj.getCapabilities((err, data, xml) => {
+								if (err) adapter.log.error(cam_obj.hostname + " getCapabilities: " + err);
+								if (!err && data.events && data.events.WSPullPointSupport && data.events.WSPullPointSupport == true) {
+									adapter.log.debug(cam_obj.hostname + ' Camera supports WSPullPoint');
+									hasEvents = true;
 								} else {
-									// Display the available Topics
-									let parseNode = function(node, topicPath) {
-										// loop over all the child nodes in this node
-										for (const child in node) {
-											if (child == "$") {continue;} else if (child == "messageDescription") {
-												// we have found the details that go with an event
-												// examine the messageDescription
-												let IsProperty = false;
-												let source = '';
-												let data = '';
-												if (node[child].$ && node[child].$.IsProperty) {IsProperty = node[child].$.IsProperty}
-												if (node[child].source) {source = JSON.stringify(node[child].source)}
-												if (node[child].data) {data = JSON.stringify(node[child].data)}
-												adapter.log.debug('Found Event - ' + topicPath.toUpperCase())
-												//console.log('  IsProperty=' + IsProperty);
-												if (source.length > 0) {adapter.log.debug('  Source=' + source);}
-												if (data.length > 0) {adapter.log.debug('  Data=' + data);}
-												hasTopics = true
-												return
-											} else {
-												// decend into the child node, looking for the messageDescription
-												parseNode(node[child], topicPath + '/' + child)
+									adapter.log.info(cam_obj.hostname + ' Camera does not show WSPullPoint support, but trying anyway');
+									// Have an Axis cameras that says False to WSPullPointSuppor but supports it anyway
+									hasEvents = true; // Hack for Axis cameras
+								}
+
+								if (hasEvents == false) {
+									adapter.log.info(cam_obj.hostname + ' This camera/NVT does not support PullPoint Events');
+								}
+								callback();
+							})
+						},
+						function(callback) {
+							if (hasEvents) {
+								cam_obj.getEventProperties((err, data, xml) => {
+									if (err) {
+										adapter.log.error(cam_obj.hostname + " getEventProperties: " + err);
+									} else {
+										// Display the available Topics
+										let parseNode = (node, topicPath) => {
+											// loop over all the child nodes in this node
+											for (const child in node) {
+												if (child == "$") {continue;} else if (child == "messageDescription") {
+													// we have found the details that go with an event
+													// examine the messageDescription
+													let IsProperty = false;
+													let source = '';
+													let data = '';
+													let dataName;
+													let dataType;
+													if (node[child].$ && node[child].$.IsProperty) {IsProperty = node[child].$.IsProperty}
+													if (node[child].source) {source = JSON.stringify(node[child].source)}
+													if (node[child].data) {data = JSON.stringify(node[child].data)}
+													//adapter.log.debug(cam_obj.hostname + ' Found Event - ' + topicPath.toUpperCase())
+													//adapter.log.debug(cam_obj.hostname + '  IsProperty=' + IsProperty);
+													//if (source.length > 0) {adapter.log.debug(cam_obj.hostname + '  Source=' + source);}
+													//if (data.length > 0) {adapter.log.debug(cam_obj.hostname + '  Data=' + data);}
+													if (IsProperty) {
+														if (node[child].data.simpleItemDescription.$.hasOwnProperty('Name')) {
+															dataName = node[child].data.simpleItemDescription.$.Name;
+														}
+														if (node[child].data.simpleItemDescription.$.hasOwnProperty('Type')) {
+															dataType = node[child].data.simpleItemDescription.$.Type.substr(3);
+														}
+														topicPath = topicPath.toLowerCase();
+														sub_obj.push({
+															nameObj: topicPath.substr(1).split("/").join("."),
+															nameValue: dataName,
+															nameType: dataType
+														});
+														hasTopics = true;
+													}
+													return
+												} else {
+													// decend into the child node, looking for the messageDescription
+													parseNode(node[child], topicPath + '/' + child)
+												}
 											}
 										}
+										parseNode(data.topicSet, '')
 									}
-									parseNode(data.topicSet, '')
-								}
-								adapter.log.debug('');
-								adapter.log.debug('');
+									adapter.log.debug('');
+									adapter.log.warn(cam_obj.hostname + " sub_obj: " + JSON.stringify(sub_obj));
+									adapter.log.debug('');
+									callback()
+								});
+							} else {
 								callback()
-							});
-						} else {
-							callback()
-						}
-					},
-                    function(callback) {
-                        try {
-                            cam_obj.getStreamUri({
-                                protocol: 'RTSP',
-                                stream: 'RTP-Unicast'
-                            }, function(err, stream, xml) {
-								if (err) adapter.log.error("getStreamUri (RTSP): " + err);
-                                if (!err) got_live_stream_tcp = stream;
-                                callback();
-                            });
-                        } catch(err) {callback();}
-                    },
-                    function(callback) {
-                        try {
-                            cam_obj.getStreamUri({
-                                protocol: 'UDP',
-                                stream: 'RTP-Unicast'
-                            }, function(err, stream, xml) {
-								if (err) adapter.log.error("getStreamUri (UDP): " + err);
-                                if (!err) got_live_stream_udp = stream;
-                                callback();
-                            });
-                        } catch(err) {callback();}
-                    },
-                    function(callback) {
-                        try {
-                            cam_obj.getStreamUri({
-                                protocol: 'UDP',
-                                stream: 'RTP-Multicast'
-                            }, function(err, stream, xml) {
-								if (err) adapter.log.error("getStreamUri (RTP-Multicast): " + err);
-                                if (!err) got_live_stream_multicast = stream;
-                                callback();
-                            });
-                        } catch(err) {callback();}
-                    },
-					function(callback) {
-						try {
-							cam_obj.getPresets({}, // use 'default' profileToken
-								// Completion callback function
-								// This callback is executed once we have a list of presets
-								function (err, stream, xml) {
-									if (err) {
-										adapter.log.error("GetPreset Error " + err);
-										//return;
-										callback();
-									} else {
-										// loop over the presets and populate the arrays
-										// Do this for the first 9 presets
-										adapter.log.warn("GetPreset Reply: " +  + JSON.stringify(stream));
-										/*let count = 1;
-										for(let item in stream) {
-											let name = item;          //key
-											let token = stream[item]; //value
-											// It is possible to have a preset with a blank name so generate a name
-											if (name.length == 0) name = 'no name (' + token + ')';
-											preset_names.push(name);
-											preset_tokens.push(token);
+							}
+						},	
+						function(callback) {
+							try {
+								cam_obj.getStreamUri({
+									protocol: 'RTSP',
+									stream: 'RTP-Unicast'
+								}, (err, stream, xml) => {
+									if (err) adapter.log.error(cam_obj.hostname + " getStreamUri (RTSP): " + err);
+									if (!err) got_live_stream_tcp = stream;
+									callback();
+								});
+							} catch(err) {callback();}
+						},
+						function(callback) {
+							try {
+								cam_obj.getStreamUri({
+									protocol: 'UDP',
+									stream: 'RTP-Unicast'
+								}, (err, stream, xml) => {
+									if (err) adapter.log.error(cam_obj.hostname + " getStreamUri (UDP): " + err);
+									if (!err) got_live_stream_udp = stream;
+									callback();
+								});
+							} catch(err) {callback();}
+						},
+						function(callback) {
+							try {
+								cam_obj.getStreamUri({
+									protocol: 'UDP',
+									stream: 'RTP-Multicast'
+								}, (err, stream, xml) => {
+									if (err) adapter.log.error(cam_obj.hostname + " getStreamUri (RTP-Multicast): " + err);
+									if (!err) got_live_stream_multicast = stream;
+									callback();
+								});
+							} catch(err) {callback();}
+						},
+						function(callback) {
+							try {
+								cam_obj.getPresets({}, // use 'default' profileToken
+									// Completion callback function
+									// This callback is executed once we have a list of presets
+									(err, stream, xml) => {
+										if (err) {
+											adapter.log.error(cam_obj.hostname + " GetPreset Error " + err);
+											//return;
+											callback();
+										} else {
+											// loop over the presets and populate the arrays
+											// Do this for the first 9 presets
+											adapter.log.warn(cam_obj.hostname + " GetPreset Reply: " +  + JSON.stringify(stream));
+											/*let count = 1;
+											for(let item in stream) {
+												let name = item;          //key
+												let token = stream[item]; //value
+												// It is possible to have a preset with a blank name so generate a name
+												if (name.length == 0) name = 'no name (' + token + ')';
+												preset_names.push(name);
+												preset_tokens.push(token);
 
-											// Show first 9 preset names to user
-											if (count < 9) {
-												adapter.log.warn('Press key ' + count + ' for preset "' + name + '"');
-											count++;
-											}
-										}*/
-										callback();
+												// Show first 9 preset names to user
+												if (count < 9) {
+													adapter.log.warn('Press key ' + count + ' for preset "' + name + '"');
+												count++;
+												}
+											}*/
+											callback();
+										}
 									}
+								);
+							} catch(err) {callback();}
+						},
+						function(callback) {
+							cam_obj.getConfigurations((err, data, xml) => {
+								if (err) adapter.log.error(cam_obj.hostname + " getConfigurations: " + err);
+								if (!err) adapter.log.warn(cam_obj.hostname + " getConfigurations: " +  + JSON.stringify(data));
+								callback();
+							});
+						},
+						function(callback) {
+							cam_obj.getNodes((err, data, xml) => {
+								if (err) adapter.log.error(cam_obj.hostname + " getNodes: " + err);
+								if (!err) adapter.log.warn(cam_obj.hostname + " getNodes: " +  + JSON.stringify(data));
+								callback();
+							});
+						},
+						function(callback) {
+							cam_obj.getRecordings((err, recordings, xml) => {
+								if (err) adapter.log.error(cam_obj.hostname + " getRecordings: " + err);
+								if (!err) got_recordings = recordings;
+								callback();
+							});
+						},
+						function(callback) {
+							// Get Recording URI for the first recording on the NVR
+							if (got_recordings) {
+								adapter.log.debug(cam_obj.hostname + ' got_recordings='+JSON.stringify(got_recordings));
+								if (Array.isArray(got_recordings)) {
+									got_recordings = got_recordings[0];
 								}
-							);
-						} catch(err) {callback();}
-					},
-					function(callback) {
-                        cam_obj.getConfigurations(function(err, data, xml) {
-							if (err) adapter.log.error("getConfigurations: " + err);
-                            if (!err) adapter.log.warn("getConfigurations: " +  + JSON.stringify(data));
-                            callback();
-                        });
-                    },
-					function(callback) {
-                        cam_obj.getNodes(function(err, data, xml) {
-							if (err) adapter.log.error("getNodes: " + err);
-                            if (!err) adapter.log.warn("getNodes: " +  + JSON.stringify(data));
-                            callback();
-                        });
-                    },
-                    function(callback) {
-                        cam_obj.getRecordings(function(err, recordings, xml) {
-							if (err) adapter.log.error("getRecordings: " + err);
-                            if (!err) got_recordings = recordings;
-                            callback();
-                        });
-                    },
-                    function(callback) {
-                        // Get Recording URI for the first recording on the NVR
-                        if (got_recordings) {
-                            adapter.log.debug('got_recordings='+JSON.stringify(got_recordings));
-                            if (Array.isArray(got_recordings)) {
-                                got_recordings = got_recordings[0];
-                            }
-                            cam_obj.getReplayUri({
-                                protocol: 'RTSP',
-                                recordingToken: got_recordings.recordingToken
-                            }, function(err, stream, xml) {
-								if (err) adapter.log.error("getReplayUri: " + err);
-                                if (!err) got_replay_stream = stream;
-                                callback();
-                            });
-                        } else {
-                            callback();
-                        }
-                    },
-                    function(localcallback) {
-                        adapter.log.debug('------------------------------');
-                        adapter.log.debug('Host: ' + ip_entry + ' Port: ' + port_entry);
-                        adapter.log.debug('Date: = ' + got_date);
-                        adapter.log.debug('Info: = ' + JSON.stringify(got_info));
-                        if (got_live_stream_tcp) {
-                            adapter.log.debug('First Live TCP Stream: =       ' + got_live_stream_tcp.uri);
-                        }
-                        if (got_live_stream_udp) {
-                            adapter.log.debug('First Live UDP Stream: =       ' + got_live_stream_udp.uri);
-                        }
-                        if (got_live_stream_multicast) {
-                            adapter.log.debug('First Live Multicast Stream: = ' + got_live_stream_multicast.uri);
-                        }
-                        if (got_replay_stream) {
-                            adapter.log.debug('First Replay Stream: = ' + got_replay_stream.uri);
-                        }
-                        adapter.log.debug('capabilities: ' + JSON.stringify(cam_obj.capabilities));
-                        adapter.log.debug('------------------------------');
-                        devices.push({
-                            id: getId(ip_entry+':'+port_entry),
-                            name: ip_entry+':'+port_entry,
-                            ip: ip_entry,
-                            port: port_entry,
-                            user: user,
-                            pass: pass,
-                            ip: ip_entry,
-                            port: port_entry,
-                            cam_date: got_date,
-                            info: got_info,
-                            live_stream_tcp: got_live_stream_tcp,
-                            live_stream_udp: got_live_stream_udp,
-                            live_stream_multicast: got_live_stream_multicast,
-                            replay_stream: got_replay_stream
-                        });
-                        localcallback();
-                        if (counter == scanLen) processScannedDevices(devices, callback);
-                    }
-                ]); // end flow
+								cam_obj.getReplayUri({
+									protocol: 'RTSP',
+									recordingToken: got_recordings.recordingToken
+								}, (err, stream, xml) => {
+									if (err) adapter.log.error(cam_obj.hostname + " getReplayUri: " + err);
+									if (!err) got_replay_stream = stream;
+									callback();
+								});
+							} else {
+								callback();
+							}
+						},
+						async localcallback => {
+							adapter.log.debug('------------------------------');
+							adapter.log.debug('Host: ' + ip_entry + ' Port: ' + port_entry);
+							adapter.log.debug('Date: = ' + got_date);
+							adapter.log.debug('Info: = ' + JSON.stringify(got_info));
+							if (got_live_stream_tcp) {
+								adapter.log.debug('First Live TCP Stream: =       ' + got_live_stream_tcp.uri);
+							}
+							if (got_live_stream_udp) {
+								adapter.log.debug('First Live UDP Stream: =       ' + got_live_stream_udp.uri);
+							}
+							if (got_live_stream_multicast) {
+								adapter.log.debug('First Live Multicast Stream: = ' + got_live_stream_multicast.uri);
+							}
+							if (got_replay_stream) {
+								adapter.log.debug('First Replay Stream: = ' + got_replay_stream.uri);
+							}
+							adapter.log.debug('capabilities: ' + JSON.stringify(cam_obj.capabilities));
+							adapter.log.debug('------------------------------');
+							devices.push({
+								id: getId(ip_entry+':'+port_entry),
+								name: ip_entry+':'+port_entry,
+								ip: ip_entry,
+								port: port_entry,
+								user: user,
+								pass: pass,
+								ip: ip_entry,
+								cam_date: got_date,
+								info: got_info,
+								events: hasTopics, 
+								live_stream_tcp: got_live_stream_tcp,
+								live_stream_udp: got_live_stream_udp,
+								live_stream_multicast: got_live_stream_multicast,
+								replay_stream: got_replay_stream
+							});
+							localcallback();
 
+							if (counter == scanLen) {
+								let newInstances = await processScannedDevices(devices, cam_obj, sub_obj);
+								adapter.log.warn('processScannedDevices.newInstances = ' + JSON.stringify(newInstances));
+								return callback(null, newInstances, devices);
+							}
+						}
+					]); // end flow
+				}
             });
         }); // foreach
     }); // foreach
+  } catch(err) {callback(err);}
 }
 
 
-function processScannedDevices(devices, callback) {
-    // check if device is new
-    var newInstances = [], currDevs = [];
-    adapter.getDevices((err, result) => {
-		if (err) adapter.log.error("processScannedDevices: " + err);
-        if(result) {
-            for (var item in result) {
-                if (result[item]._id) {
-                    currDevs.push(result[item]._id);
-                }
-            }
-        }
-        for (var devInd in devices) {
-            var dev = devices[devInd];
-            if (currDevs.indexOf(dev.id) == -1) {
-                newInstances.push(dev);
-                // create new camera
-                updateDev(dev.id, dev.name, dev);
-            }
-        }
-        startCameras();
-        if (callback) callback(newInstances);
-    });
+async function processScannedDevices(devices, cam_obj, sub_obj) {
+    // check if device is newInstances
+	adapter.log.warn('processScannedDevices');
+    return new Promise((resolve, reject) => {adapter.getDevices(async(err, result) => {
+			adapter.log.debug('processScannedDevices. adapter.getDevices');
+			let newInstances = [];
+			let currDevs = [];
+			if (err) {
+				adapter.log.error(cam_obj.hostname + " processScannedDevices: " + err);
+				reject(err);
+			} else {
+				adapter.log.debug('processScannedDevices. result = ' + JSON.stringify(result));
+				result.forEach(item => {
+					adapter.log.debug('processScannedDevices. item = ' + JSON.stringify(item));
+					if (item._id) {
+						currDevs.push(item.common.data.id);
+					}
+				});
+				adapter.log.debug('processScannedDevices. currDevs = ' + JSON.stringify(currDevs));
+				adapter.log.debug('processScannedDevices. currDevs = ' + currDevs.length);
+				adapter.log.debug('processScannedDevices. devices = ' + JSON.stringify(devices));
+
+				for (let dev of devices){
+					adapter.log.debug('processScannedDevices. dev = ' + JSON.stringify(dev));
+					adapter.log.debug('processScannedDevices. currDevs.indexOf(dev.id) = ' + currDevs.indexOf(dev.id));
+					adapter.log.warn(`!!!!! processScannedDevices. dev.id = ${dev.id}`);
+					if (currDevs.indexOf(dev.id) == -1) {
+						newInstances.push(dev);
+						let str = await updateDev(dev.id, dev.name, dev, sub_obj);
+						adapter.log.warn('processScannedDevices. str = ' + str);
+					}
+				}
+				adapter.log.warn('processScannedDevices. STOP');
+				resolve(newInstances);
+			} 
+		});
+	});
 }
 
 
-function updateDev(dev_id, dev_name, devData) {
+async function updateDev(dev_id, dev_name, devData, sub_obj) {
     // create dev
     adapter.log.warn('создать dev_id: ' + JSON.stringify(dev_id));
     adapter.log.debug('создать dev_name: ' + JSON.stringify(dev_name));
     adapter.log.debug('создать devData: ' + JSON.stringify(devData));
-    adapter.setObjectNotExists(dev_id, {
-        type: 'device',
-        common: {name: dev_name, data: devData}
-    }, {}, function (obj) {
-        adapter.getObject(dev_id, function(err, obj) {
-			if (err) adapter.log.error("updateDev. getObject: " + err);
-            if (!err && obj) {
-                // if update
-                adapter.extendObject(dev_id, {
-                    type: 'device',
-                    common: {data: devData}
-                });
-                startCameras();
-            }
-        });
-    });
+	adapter.log.warn('создать sub_obj: ' + JSON.stringify(sub_obj));
+    return new Promise((resolve, reject) => {adapter.setObjectNotExists(dev_id, {
+			type: 'device',
+			common: {name: dev_name, data: devData}
+		}, {}, obj => {
+			let devID = dev_id;
+			let subOBJ = sub_obj;
+			adapter.getObject(devID, (err, obj) => {
+				if (err) {
+					adapter.log.error("updateDev. getObject: " + err);
+					reject(err);
+				}
+				if (!err && obj) {
+					// if update
+					adapter.extendObject(devID, {
+						type: 'device',
+						common: {data: devData}
+					});
+					adapter.log.warn('updateDev sub_obj: ' + JSON.stringify(subOBJ));
+					subOBJ.forEach(item => {
+						let nameTopic = devID + '.message.' + item.nameObj;
+						let value;
+						
+						if (item.nameType === 'boolean') value = false;
+						if (item.nameType === 'string') value = '';
+						if (item.nameType === 'int') value = 0;
+						updateState(nameTopic, item.nameValue, value, {"type": typeof(value), "read": true, "write": false});
+						adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
+					});
+					adapter.log.debug('updateDev. resolve = OK');
+					resolve("OK");
+				}
+			});
+		});
+	});
 }
 
 
@@ -796,38 +970,49 @@ function startAdapter(options) {
          		if (obj.command === 'discovery') {
 					// e.g. send email or pushover or whatever
 					adapter.log.debug('Received "discovery" event');
-					discovery(obj.message, function (error, newInstances, devices) {
+					discovery(obj.message, (error, newInstances, devices) => {
 						isDiscovery = false;
-						adapter.log.debug('Discovery finished');
+						adapter.log.warn('Discovery.error: ' + error);
+						adapter.log.warn('Discovery.newInstances: ' + JSON.stringify(newInstances));
+						adapter.log.warn('Discovery.devices: ' + JSON.stringify(devices));
+						startCameras();
+						adapter.log.info('Discovery finished');
 						adapter.setState('discoveryRunning', { val: false, ack: true });
-						if (obj.callback){
-							adapter.sendTo(obj.from, obj.command, {
-								error:        error,
-								devices:      devices,
-								newInstances: newInstances
-							}, obj.callback);
-						}
+						setTimeout (() => {
+							if (obj.callback){
+								adapter.sendTo(obj.from, obj.command, {
+									error:        error,
+									devices:      devices,
+									newInstances: newInstances
+								}, obj.callback);
+							}
+						}, 1000);
 					});
 				}
 				if (obj.command === 'getDevices') {
-					adapter.log.warn('Received "getDevices" event');
-					getDevices(obj.from, obj.command, obj.message, obj.callback);
-					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					adapter.log.warn('Received "getDevices" event.');
+					getDevicesAdmin(devices => {
+						adapter.sendTo(obj.from, obj.command, devices, obj.callback);
+					});
 				}
 				if (obj.command === 'deleteDevice') {
-					adapter.log.warn('Received "deleteDevice" event');
-					deleteDevice(obj.from, obj.command, obj.message, obj.callback);
-					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					adapter.log.warn('Received "deleteDevice" event. message.id: ' + JSON.stringify(obj.message));
+					clearTimeout(timeoutID);
+					deleteDevice(obj.message, () => {
+						if (obj.callback) adapter.sendTo(obj.from, obj.command, {}, obj.callback);
+					});
 				}
 				if (obj.command === 'getSnapshot') {
-					adapter.log.warn('Received "getSnapshot" event');
-					getSnapshot(obj.from, obj.command, obj.message, obj.callback);
-					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					adapter.log.debug('Received "getSnapshot" event. message.id: ' + JSON.stringify(obj.message));
+					getSnapshot(obj.message, (error, img) => {
+						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
+					});
 				}
 				if (obj.command === 'saveFileSnapshot') {
-					adapter.log.warn('Received "saveFileSnapshot" event');
-					saveFileSnapshot(obj.from, obj.command, obj.message, obj.callback);
-					//if (obj.callback) adapter.sendTo(obj.from, obj.command, 'Message received', obj.callback);
+					adapter.log.debug('Received "saveFileSnapshot" event. message.id: ' + JSON.stringify(obj.message));
+					saveFileSnapshot(obj.message, (error, img) => {
+						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
+					});
 				}
          	}
         },
@@ -835,12 +1020,6 @@ function startAdapter(options) {
 }
 
 function main() {
-
-    // The adapters config (in the instance object everything under the attribute "native") is accessible via
-    // adapter.config:
-    //adapter.log.info('config option1: ' + adapter.config.option1);
-    //adapter.log.info('config option2: ' + adapter.config.option2);
-
     // in this template all states changes inside the adapters namespace are subscribed
     adapter.subscribeStates('*');
 	
