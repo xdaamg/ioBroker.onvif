@@ -588,10 +588,10 @@ function discovery(options, callback) {
 													if (node[child].$ && node[child].$.IsProperty) {IsProperty = node[child].$.IsProperty}
 													if (node[child].source) {source = JSON.stringify(node[child].source)}
 													if (node[child].data) {data = JSON.stringify(node[child].data)}
-													//adapter.log.debug(cam_obj.hostname + ' Found Event - ' + topicPath.toUpperCase())
-													//adapter.log.debug(cam_obj.hostname + '  IsProperty=' + IsProperty);
-													//if (source.length > 0) {adapter.log.debug(cam_obj.hostname + '  Source=' + source);}
-													//if (data.length > 0) {adapter.log.debug(cam_obj.hostname + '  Data=' + data);}
+													adapter.log.debug(cam_obj.hostname + ' Found Event - ' + topicPath.toUpperCase())
+													adapter.log.debug(cam_obj.hostname + '  IsProperty=' + IsProperty);
+													if (source.length > 0) {adapter.log.debug(cam_obj.hostname + '  Source=' + source);}
+													if (data.length > 0) {adapter.log.debug(cam_obj.hostname + '  Data=' + data);}
 													if (IsProperty) {
 														if (node[child].data.simpleItemDescription.$.hasOwnProperty('Name')) {
 															dataName = node[child].data.simpleItemDescription.$.Name;
