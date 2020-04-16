@@ -85,10 +85,12 @@
             startDiscovery();
         });
         $('.modal').modal();
+		console.log('$(document).ready');
         getDevices();
         socket.on('objectChange', function (id, obj) {
             if (id.substring(0, namespaceLen) !== namespace) return;
             if (obj && obj.type == "device") {
+				console.log('socket.on(objectChange): ' + obj.type);
                 getDevices();
             }
         });
@@ -180,7 +182,7 @@
 
     function deleteDevice(id) {
         sendTo(null, 'deleteDevice', {id: id}, function (msg) {
-            //console.log(msg);
+            console.log('deleteDevice: ' + msg);
             if (msg) {
                 if (msg.error) {
                     showMessage(msg.error.code, _('Error'), 'alert');
@@ -197,7 +199,7 @@
 
     function getDevices() {
         sendTo(null, 'getDevices', {}, function (msg) {
-            console.log(msg);
+            console.log('getDevices: ' + msg);
             if (msg) {
                 if (msg.error) {
                     showMessage(msg.error, _('Error'), 'alert');
@@ -252,7 +254,7 @@
     function getSnapshot(id){
 		console.log('id = ' + id);
 		Snapshot.forEach(idCam => {
-			console.log('idCam = ' + JSON.stringify(idCam));
+			//console.log('idCam = ' + JSON.stringify(idCam));
 			if ((idCam.id === id)&&(!idCam.img)){
 				idCam.img = true;
 				sendTo(null, 'getSnapshot', {id: id}, function (msg) {

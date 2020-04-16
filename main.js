@@ -25,9 +25,8 @@ let cam1, cam2;
 let adapter;
 
 let isDiscovery = false;
-let isRunEvents = false;
 let cameras = {};
-let timeoutID;
+let timeoutID = {};
 
 function override(child, fn) {
     child.prototype[fn.name] = fn;
@@ -89,7 +88,6 @@ function getSnapshot(message, callback){
 	adapter.log.debug('getSnapshot. cam: ' + JSON.stringify(cam));
     if (cam) {
         // get snapshot
-		adapter.log.debug('getSnapshot. 2message.id: ' + JSON.stringify(message.id));
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
 			if (err) {
 				adapter.log.error("getSnapshot. Error: " + err);
@@ -231,43 +229,50 @@ async function setCameras(devices){
 
 async function startCameras(){
     adapter.log.debug('startCameras');
+	clearTimeouts();
     try {
 		let devices = await getDevices();
 		await setCameras(devices);
 		adapter.log.debug('startCameras. cameras: ' + JSON.stringify(cameras));
 		if (Object.keys(cameras).length == 0){
 			adapter.log.warn("startCameras: Camera/NVT unavailables");
-			timeoutID = setTimeout(startCameras, 600000); // Restart adapter 10 min
+			timeoutID.Restart = setTimeout(startCameras, 600000); // Restart adapter 10 min
 		} else for (let item of devices) {
-			let dev = devices[item],
+			let dev = item,
             devData = dev.common.data,
             cam;
 			if (devData.events === true) {
+				timeoutID[devData.id] = 'OK';
 				cam = cameras[dev._id];
 				// message subscription
-				cam.createPullPointSubscription((err, data) => {
-					if (err) {
-						adapter.log.error("createPullPointSubscription: " + err);
-						updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
-					} else {
-						adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
-						updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
-						isRunEvents = true;
-						setTimeout(function tick() {
-							cam.pullMessages({timeout: 60000, messageLimit: 1}, (err, events) => {
-								if (err) {
-									adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
-	
-									if (isRunEvents) setTimeout(tick, 1000);
-								} else {
-									adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
-									camEvents(devData.id, events.notificationMessage);											
-									if (isRunEvents) setTimeout(tick, 200);
-								}
-							});
-						}, 200);
-					}
-				});
+				if (typeof cam !== 'undefined'){
+					cam.createPullPointSubscription((err, data) => {
+						if (err) {
+							adapter.log.error("createPullPointSubscription: " + err);
+							updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
+						} else {
+							adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
+							updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
+							if (typeof timeoutID[devData.id] !== 'undefined'){
+								timeoutID[devData.id] = setTimeout(function tick() {
+									cam.pullMessages({timeout: 60000, messageLimit: 1}, (err, events) => {
+										if (typeof timeoutID[devData.id] !== 'undefined'){
+											if (err) {
+												adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
+				
+												timeoutID[devData.id] = setTimeout(tick, 1000);
+											} else {
+												adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
+												camEvents(devData.id, events.notificationMessage);											
+												timeoutID[devData.id] = setTimeout(tick, 200);
+											}
+										}
+									});
+								}, 200);
+							}
+						}
+					});
+				}
 			} else {
 				adapter.log.warn(`startCameras. This Camera/NVT ${devData.id} does not support PullPoint Events`);
 			}
@@ -292,7 +297,7 @@ function camEvents(devId, camMessage) {
 	// OR - Message/Message/Data/SimpleItem/$/name   (single item)
 	//    - Message/Message/Data/SimpleItem/[index]/$/value   (array of items)
 	// OR - Message/Message/Data/SimpleItem/$/value   (single item)
-	adapter.log.debug('camEvents. camMessage = ' + JSON.stringify(camMessage));
+	adapter.log.debug(`camEvents (${devId}): camMessage = ${JSON.stringify(camMessage)}`);
 	let eventTopic = camMessage.topic._
 	eventTopic = stripNamespaces(eventTopic);
 
@@ -375,8 +380,8 @@ function stripNamespaces(topic) {
 }
 
 function processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue) {
-	let output = devId;
-	output += `.EVENT: ${eventTime.toJSON()} ${eventTopic}`
+	let output = `EVENT (${devId}): `;
+	output += `${eventTime.toJSON()} ${eventTopic}`
 	if (typeof(eventProperty) !== "undefined") {
 		output += ` PROP:${eventProperty}`;
 	}
@@ -411,15 +416,30 @@ function updateState(devId, name, value, common) {
     });
 }
 
+function clearTimeouts(){
+	for (let key in timeoutID){
+		clearTimeout(timeoutID[key]);
+		timeoutID[key] = setTimeout(() => {delete timeoutID[key]}, 10);
+	}
+}
+
 function deleteDevice(msg, callback) {
     var id = msg.id,
-        dev_id = id.replace(adapter.namespace+'.', '');
-    adapter.log.warn('delete device '+dev_id);
-	clearTimeout(timeoutID);
-    adapter.deleteDevice(dev_id, () => {
-		startCameras();
-		setTimeout(callback(), 300);
-    });
+        devId = id.replace(adapter.namespace+'.', '');
+    adapter.log.warn('Deleted camera/NVT: ' + devId);
+	clearTimeouts();
+
+	adapter.getStatesOf(devId, (err, states) => {
+		if (!err && states) {
+			states.forEach(state => {
+				adapter.delObject(state._id);
+			});
+		}
+		adapter.deleteDevice(devId, err => {
+			startCameras();
+			callback(err);
+		});
+	});
 }
 
 
@@ -514,7 +534,7 @@ function discovery(options, callback) {
 						});*/
                 } else {
 					let cam_obj = this;
-					adapter.log.warn('cam_obj: ' + JSON.stringify(cam_obj));
+					adapter.log.info('cam_obj: ' + JSON.stringify(cam_obj));
 					let sub_obj = [];
 					let got_date;
 					let got_info;
@@ -553,16 +573,16 @@ function discovery(options, callback) {
 							cam_obj.getCapabilities((err, data, xml) => {
 								if (err) adapter.log.error(cam_obj.hostname + " getCapabilities: " + err);
 								if (!err && data.events && data.events.WSPullPointSupport && data.events.WSPullPointSupport == true) {
-									adapter.log.debug(cam_obj.hostname + ' Camera supports WSPullPoint');
+									adapter.log.info(cam_obj.hostname + ' Camera supports WSPullPoint');
 									hasEvents = true;
 								} else {
-									adapter.log.info(cam_obj.hostname + ' Camera does not show WSPullPoint support, but trying anyway');
+									adapter.log.warn(cam_obj.hostname + ' Camera does not show WSPullPoint support, but trying anyway');
 									// Have an Axis cameras that says False to WSPullPointSuppor but supports it anyway
-									hasEvents = true; // Hack for Axis cameras
+									hasEvents = false; // Hack for Axis cameras
 								}
 
 								if (hasEvents == false) {
-									adapter.log.info(cam_obj.hostname + ' This camera/NVT does not support PullPoint Events');
+									adapter.log.warn(cam_obj.hostname + ' This camera/NVT does not support PullPoint Events');
 								}
 								callback();
 							})
@@ -616,9 +636,7 @@ function discovery(options, callback) {
 										}
 										parseNode(data.topicSet, '')
 									}
-									adapter.log.debug('');
-									adapter.log.warn(cam_obj.hostname + " sub_obj: " + JSON.stringify(sub_obj));
-									adapter.log.debug('');
+									adapter.log.info(cam_obj.hostname + " sub_obj: " + JSON.stringify(sub_obj));
 									callback()
 								});
 							} else {
@@ -674,7 +692,7 @@ function discovery(options, callback) {
 										} else {
 											// loop over the presets and populate the arrays
 											// Do this for the first 9 presets
-											adapter.log.warn(cam_obj.hostname + " GetPreset Reply: " +  + JSON.stringify(stream));
+											adapter.log.info(cam_obj.hostname + " GetPreset Reply: " +  + JSON.stringify(stream));
 											/*let count = 1;
 											for(let item in stream) {
 												let name = item;          //key
@@ -699,14 +717,14 @@ function discovery(options, callback) {
 						function(callback) {
 							cam_obj.getConfigurations((err, data, xml) => {
 								if (err) adapter.log.error(cam_obj.hostname + " getConfigurations: " + err);
-								if (!err) adapter.log.warn(cam_obj.hostname + " getConfigurations: " +  + JSON.stringify(data));
+								if (!err) adapter.log.info(cam_obj.hostname + " getConfigurations: " +  + JSON.stringify(data));
 								callback();
 							});
 						},
 						function(callback) {
 							cam_obj.getNodes((err, data, xml) => {
 								if (err) adapter.log.error(cam_obj.hostname + " getNodes: " + err);
-								if (!err) adapter.log.warn(cam_obj.hostname + " getNodes: " +  + JSON.stringify(data));
+								if (!err) adapter.log.info(cam_obj.hostname + " getNodes: " +  + JSON.stringify(data));
 								callback();
 							});
 						},
@@ -720,7 +738,7 @@ function discovery(options, callback) {
 						function(callback) {
 							// Get Recording URI for the first recording on the NVR
 							if (got_recordings) {
-								adapter.log.debug(cam_obj.hostname + ' got_recordings='+JSON.stringify(got_recordings));
+								adapter.log.info(cam_obj.hostname + ' got_recordings='+JSON.stringify(got_recordings));
 								if (Array.isArray(got_recordings)) {
 									got_recordings = got_recordings[0];
 								}
@@ -737,10 +755,10 @@ function discovery(options, callback) {
 							}
 						},
 						async localcallback => {
-							adapter.log.debug('------------------------------');
-							adapter.log.debug('Host: ' + ip_entry + ' Port: ' + port_entry);
-							adapter.log.debug('Date: = ' + got_date);
-							adapter.log.debug('Info: = ' + JSON.stringify(got_info));
+							adapter.log.info('------------------------------');
+							adapter.log.info('Host: ' + ip_entry + ' Port: ' + port_entry);
+							adapter.log.info('Date: = ' + got_date);
+							adapter.log.info('Info: = ' + JSON.stringify(got_info));
 							if (got_live_stream_tcp) {
 								adapter.log.debug('First Live TCP Stream: =       ' + got_live_stream_tcp.uri);
 							}
@@ -754,7 +772,7 @@ function discovery(options, callback) {
 								adapter.log.debug('First Replay Stream: = ' + got_replay_stream.uri);
 							}
 							adapter.log.debug('capabilities: ' + JSON.stringify(cam_obj.capabilities));
-							adapter.log.debug('------------------------------');
+							adapter.log.info('------------------------------');
 							devices.push({
 								id: getId(ip_entry+':'+port_entry),
 								name: ip_entry+':'+port_entry,
@@ -775,7 +793,7 @@ function discovery(options, callback) {
 
 							if (counter == scanLen) {
 								let newInstances = await processScannedDevices(devices, cam_obj, sub_obj);
-								adapter.log.warn('processScannedDevices.newInstances = ' + JSON.stringify(newInstances));
+								adapter.log.debug('processScannedDevices. newInstances = ' + JSON.stringify(newInstances));
 								return callback(null, newInstances, devices);
 							}
 						}
@@ -790,9 +808,8 @@ function discovery(options, callback) {
 
 async function processScannedDevices(devices, cam_obj, sub_obj) {
     // check if device is newInstances
-	adapter.log.warn('processScannedDevices');
+	adapter.log.debug('processScannedDevices');
     return new Promise((resolve, reject) => {adapter.getDevices(async(err, result) => {
-			adapter.log.debug('processScannedDevices. adapter.getDevices');
 			let newInstances = [];
 			let currDevs = [];
 			if (err) {
@@ -801,26 +818,22 @@ async function processScannedDevices(devices, cam_obj, sub_obj) {
 			} else {
 				adapter.log.debug('processScannedDevices. result = ' + JSON.stringify(result));
 				result.forEach(item => {
-					adapter.log.debug('processScannedDevices. item = ' + JSON.stringify(item));
 					if (item._id) {
 						currDevs.push(item.common.data.id);
 					}
 				});
 				adapter.log.debug('processScannedDevices. currDevs = ' + JSON.stringify(currDevs));
-				adapter.log.debug('processScannedDevices. currDevs = ' + currDevs.length);
 				adapter.log.debug('processScannedDevices. devices = ' + JSON.stringify(devices));
 
 				for (let dev of devices){
 					adapter.log.debug('processScannedDevices. dev = ' + JSON.stringify(dev));
 					adapter.log.debug('processScannedDevices. currDevs.indexOf(dev.id) = ' + currDevs.indexOf(dev.id));
-					adapter.log.warn(`!!!!! processScannedDevices. dev.id = ${dev.id}`);
 					if (currDevs.indexOf(dev.id) == -1) {
 						newInstances.push(dev);
 						let str = await updateDev(dev.id, dev.name, dev, sub_obj);
-						adapter.log.warn('processScannedDevices. str = ' + str);
+						adapter.log.debug('processScannedDevices ' + str);
 					}
 				}
-				adapter.log.warn('processScannedDevices. STOP');
 				resolve(newInstances);
 			} 
 		});
@@ -830,10 +843,9 @@ async function processScannedDevices(devices, cam_obj, sub_obj) {
 
 async function updateDev(dev_id, dev_name, devData, sub_obj) {
     // create dev
-    adapter.log.warn('создать dev_id: ' + JSON.stringify(dev_id));
-    adapter.log.debug('создать dev_name: ' + JSON.stringify(dev_name));
+    adapter.log.debug('создать dev_id: ' + JSON.stringify(dev_id));
     adapter.log.debug('создать devData: ' + JSON.stringify(devData));
-	adapter.log.warn('создать sub_obj: ' + JSON.stringify(sub_obj));
+	adapter.log.debug('создать sub_obj: ' + JSON.stringify(sub_obj));
     return new Promise((resolve, reject) => {adapter.setObjectNotExists(dev_id, {
 			type: 'device',
 			common: {name: dev_name, data: devData}
@@ -851,7 +863,6 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 						type: 'device',
 						common: {data: devData}
 					});
-					adapter.log.warn('updateDev sub_obj: ' + JSON.stringify(subOBJ));
 					subOBJ.forEach(item => {
 						let nameTopic = devID + '.message.' + item.nameObj;
 						let value;
@@ -924,7 +935,7 @@ function startAdapter(options) {
         // is called when adapter shuts down - callback has to be called under any circumstances!
         unload: (callback) => {
             try {
-				clearTimeout(timeoutID);
+				clearTimeouts();
 				if (isDiscovery) {
 					//adapter && adapter.setState && adapter.setState('discoveryRunning', false, true);
 					adapter.setState('discoveryRunning', { val: false, ack: true });
@@ -970,13 +981,15 @@ function startAdapter(options) {
          		if (obj.command === 'discovery') {
 					// e.g. send email or pushover or whatever
 					adapter.log.debug('Received "discovery" event');
+					clearTimeouts();
+					adapter.log.info('Discovery starting...');
 					discovery(obj.message, (error, newInstances, devices) => {
 						isDiscovery = false;
-						adapter.log.warn('Discovery.error: ' + error);
-						adapter.log.warn('Discovery.newInstances: ' + JSON.stringify(newInstances));
-						adapter.log.warn('Discovery.devices: ' + JSON.stringify(devices));
-						startCameras();
+						adapter.log.debug('Discovery. error: ' + error);
+						adapter.log.debug('Discovery. newInstances: ' + JSON.stringify(newInstances));
+						adapter.log.debug('Discovery. devices: ' + JSON.stringify(devices));
 						adapter.log.info('Discovery finished');
+						startCameras();
 						adapter.setState('discoveryRunning', { val: false, ack: true });
 						setTimeout (() => {
 							if (obj.callback){
@@ -990,26 +1003,25 @@ function startAdapter(options) {
 					});
 				}
 				if (obj.command === 'getDevices') {
-					adapter.log.warn('Received "getDevices" event.');
+					adapter.log.info('Received "getDevices" event');
 					getDevicesAdmin(devices => {
 						adapter.sendTo(obj.from, obj.command, devices, obj.callback);
 					});
 				}
 				if (obj.command === 'deleteDevice') {
-					adapter.log.warn('Received "deleteDevice" event. message.id: ' + JSON.stringify(obj.message));
-					clearTimeout(timeoutID);
-					deleteDevice(obj.message, () => {
-						if (obj.callback) adapter.sendTo(obj.from, obj.command, {}, obj.callback);
+					adapter.log.warn('Received "deleteDevice" event (message.id: ' + JSON.stringify(obj.message) + ')');
+					deleteDevice(obj.message, (err) => {
+						if (obj.callback) adapter.sendTo(obj.from, obj.command, err, obj.callback);
 					});
 				}
 				if (obj.command === 'getSnapshot') {
-					adapter.log.debug('Received "getSnapshot" event. message.id: ' + JSON.stringify(obj.message));
+					adapter.log.debug('Received "getSnapshot" event (message.id: ' + JSON.stringify(obj.message) + ')');
 					getSnapshot(obj.message, (error, img) => {
 						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
 					});
 				}
 				if (obj.command === 'saveFileSnapshot') {
-					adapter.log.debug('Received "saveFileSnapshot" event. message.id: ' + JSON.stringify(obj.message));
+					adapter.log.debug('Received "saveFileSnapshot" event (message.id: ' + JSON.stringify(obj.message) + ')');
 					saveFileSnapshot(obj.message, (error, img) => {
 						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
 					});
