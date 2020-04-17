@@ -26,6 +26,7 @@
     var namespace = 'onvif.' + instance,
         namespaceLen = namespace.length;
 	var Snapshot = [];
+	var discoveryRunning = false;
 	
     // the function loadSettings has to exist ...
     function load(settings, onChange) {
@@ -77,12 +78,19 @@
         };
         console.log(options);
         sendTo(null, 'discovery', options, function (result) {
-            console.log(result);
+            console.log('discovery: ' + result);
+			if (result.length > 0) getDevices();
+			$('#discovery').removeClass('pulse disabled');
+			discoveryRunning = false;
+			$('#progressBar').addClass('hide');
         });
     }
     $(document).ready(function(){
         $('#discovery').off('click').on('click', function () {
+			$('#discovery').addClass('pulse disabled');
+			discoveryRunning = true;
             startDiscovery();
+			$('#progressBar').removeClass('hide');
         });
         $('.modal').modal();
 		console.log('$(document).ready');
@@ -94,27 +102,12 @@
                 getDevices();
             }
         });
-        // react to changes
-        socket.on('stateChange', function (id, state) {
-            // only watch our own states
-            if (id.substring(0, namespaceLen) !== namespace) return;
-            console.log("State change announced: " + id + " and obj = " + JSON.stringify(state));
-            if (state) {
-                if (id.match(/\.discoveryRunning$/)) {
-                    if (state.val) {
-                        $('#discovery').addClass('pulse disabled');
-                    } else {
-                        $('#discovery').removeClass('pulse disabled');
-                    }
-                }
-            }
-        });
     });
 
     function getCard(dev) {
-        var title = dev.common.name,
-            id = dev._id,
-            info = '',
+        var title = dev.common.name, //"192.168.101.3:80"
+            id = dev._id, //"onvif.0.192_168_101_3_80"
+            info = dev.common.data.info.model,
             buttons = '<a name="delete" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">delete</i></a>',
             card = '<div id="' + id + '" class="device col s12 m6 l4 xl3">'+
                 '<div class="card hoverable">'+
@@ -170,8 +163,7 @@
     }
 
     function deleteConfirmation(id, name) {
-        var text = 'Do you really whant to delete device "'+name+'" ('+id+')?';
-        $('#modaldelete').find("h3").text("Delete confirmation");
+        var text = '"'+name+'" ('+id+')';
         $('#modaldelete').find("p").text(text);
         $("#modaldelete a.btn[name='yes']").unbind("click");
         $("#modaldelete a.btn[name='yes']").click(function(e) {
@@ -199,12 +191,12 @@
 
     function getDevices() {
         sendTo(null, 'getDevices', {}, function (msg) {
-            console.log('getDevices: ' + msg);
+            //console.log('getDevices: ' + msg);
             if (msg) {
                 if (msg.error) {
                     showMessage(msg.error, _('Error'), 'alert');
                 } else {
-                    showDevices(msg);
+                    if (!discoveryRunning) showDevices(msg);
                 }
             }
         });
@@ -288,6 +280,9 @@
                     <a class="btn-floating waves-effect waves-light btn-large blue tooltipped center-align hoverable modal-trigger" href="#modal_discovery"><i class="material-icons large">youtube_searched_for</i></a>
                 </div>
             </div>
+			<div id="progressBar" class="progress hide">
+				<div class="indeterminate"></div>
+			</div>
         </div>
         <div id="devices" class="row">
         </div>
@@ -295,41 +290,41 @@
     <div class="materialize-dialogs m">
         <div id="modal_discovery" class="modal">
             <div class="modal-content">
-                <div class="title translate">Scan cameras</div>
+                <div class="title translate" for="Scan cameras">Scan cameras</div>
                 <div class="row">
                     <div class="input-field col s12 m6 l4 xl3">
                         <input class="value" type="text" id="start_range"/>
-                        <label class="translate" for="start_range" data-lang="startRange">Start range</label>
+                        <label class="translate" for="Start range" data-lang="Start range">Start range</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl3">
                         <input class="value" type="text" id="end_range"/>
-                        <label class="translate" for="end_range">End range</label>
+                        <label class="translate" for="End range">End range</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl3">
                         <input class="value" type="text" id="ports"/>
-                        <label class="translate" for="ports">Port list</label>
+                        <label class="translate" for="Port list">Port list</label>
                     </div>
                 </div>
                 <div class="row">
                     <div class="input-field col s12 m6 l4 xl4">
                         <input class="value" type="text" id="user"/>
-                        <label class="translate" for="user">User name</label>
+                        <label class="translate" for="User name">User name</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl4">
                         <input class="value" type="password" id="pass"/>
-                        <label class="translate" for="pass">Password</label>
+                        <label class="translate" for="Password">Password</label>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <a id="discovery" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" data-result="true">Start scan</a>
-                <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate">Cancel</a>
+                <a id="discovery" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" data-result="true" for="Start scan">Start scan</a>
+                <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" for="Cancel">Cancel</a>
             </div>
         </div>
         <div class="materialize-dialogs m">
             <div id="modal_add" class="modal">
                 <div class="modal-content">
-                    <div class="title translate">Add camera</div>
+                    <div class="title translate" for="Add camera">Add camera</div>
                     <div class="row">
                         <div class="input-field col s12 m6 l4 xl3">
                             <input class="value" id="ip"/>
@@ -337,35 +332,39 @@
                         </div>
                         <div class="input-field col s12 m6 l4 xl3">
                             <input class="value" id="port"/>
-                            <label class="translate" for="port">Port</label>
+                            <label class="translate" for="Port">Port</label>
                         </div>
                     </div>
                     <div class="row">
                         <div class="input-field col s12 m6 l4 xl4">
                             <input class="value" id="c_user"/>
-                            <label class="translate" for="c_user">User name</label>
+                            <label class="translate" for="User name">User name</label>
                         </div>
                         <div class="input-field col s12 m6 l4 xl4">
                             <input class="value" id="c_pass"/>
-                            <label class="translate" for="c_pass">Password</label>
+                            <label class="translate" for="Password">Password</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a id="add" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" data-result="true">Create</a>
-                    <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate">Cancel</a>
+                    <a id="add" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat" data-result="true">Create</a>
+                    <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" for="Cancel">Cancel</a>
                 </div>
             </div>
         </div>
         <div class="materialize-dialogs m">
             <div id="modaldelete" class="modal">
                 <div class="modal-content">
-                    <h3>Modal Header</h3>
-                    <p>A bunch of text</p>
+					<div class="title translate" for="Confirm deletion">Confirm deletion</div>
+					<div class="row">
+						<div class="row"></div>
+						<span for="Do you really whant to delete device?" class="translate">Do you really whant to delete device?</span>
+						<p>A bunch of text</p>
+					</div>
                 </div>
                 <div class="modal-footer">
-                    <a name="yes" href="#!" class="modal-action modal-close waves-effect waves-green btn green">Yes</a>
-                    <a href="#!" class="modal-action modal-close waves-effect waves-red btn-flat">Cancel</a>
+                    <a name="yes" href="#!" class="modal-action modal-close waves-effect waves-green btn green translate" for="Yes">Yes</a>
+                    <a href="#!" class="modal-action modal-close waves-effect waves-red btn-flat translate" for="Cancel">Cancel</a>
                 </div>
             </div>
         </div>

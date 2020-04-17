@@ -104,11 +104,13 @@ It is possible to cause both on an event, and according to the button/schedule
 
 ## Changelog
 
-### 0.0.3 (2020-04-15)
+### 0.1.0 (2020-04-15)
 * (haba1234) bag fix and different little things
 * (haba1234) compact mode
 * (haba1234) deprecated 'request' is replaced by class 'http'
 * (haba1234) 'onvif-snapshot' is replaced by class 'http'
+* (haba1234) Added translate
+* (haba1234) Refactoring code
 
 ### 0.0.2 (2018-11-20)
 * (haba1234) add events and snapshot

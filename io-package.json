@@ -1,9 +1,9 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.0.3",
+        "version": "0.1.0",
         "news": {
-			"0.0.3": {
+			"0.1.0": {
 				"en": "Bug fix and various little things",
 				"de": "Fehlerbehebung und verschiedene Kleinigkeiten",
 				"ru": "Исправление ошибок и различные мелочи",
