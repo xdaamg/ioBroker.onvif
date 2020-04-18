@@ -1,8 +1,20 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "news": {
+			"0.1.1": {
+				"en": "Port polling bug fixed",
+				"de": "Port Polling Bug behoben",
+				"ru": "Исправлена ошибка опроса портов",
+				"pt": "Corrigido o erro de pesquisa de porta",
+				"nl": "Port polling bug opgelost",
+				"fr": "Correction d'un bug d'interrogation de port",
+				"it": "Bug di polling delle porte corretto",
+				"es": "Error de sondeo de puerto corregido",
+				"pl": "Naprawiono błąd odpytywania portu",
+				"zh-cn": "修正了端口轮询错误"
+			},
 			"0.1.0": {
 				"en": "Bug fix and various little things",
 				"de": "Fehlerbehebung und verschiedene Kleinigkeiten",

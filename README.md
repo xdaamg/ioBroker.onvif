@@ -104,6 +104,9 @@ It is possible to cause both on an event, and according to the button/schedule
 
 ## Changelog
 
+### 0.1.1 (2020-04-18)
+* (haba1234) Port polling bug fixed
+
 ### 0.1.0 (2020-04-15)
 * (haba1234) bag fix and different little things
 * (haba1234) compact mode
