@@ -72,14 +72,14 @@ function httpGet(url, username, password, callback){
 				mimeType: "image/jpeg",
 				rawImage: Buffer.concat(data)
 			};
-			adapter.log.error('httpGet: ' + JSON.stringify(img));
+			adapter.log.debug('httpGet: ' + JSON.stringify(img));
 			callback(img);
 		});
 	})
 	.on('error', (err) => {
 	  adapter.log.error('httpGet. Error: ' + JSON.stringify(err));
 	});
-	req.end();	
+	req.end();
 }
 
 function getSnapshot(message, callback){
@@ -125,10 +125,9 @@ function saveFileSnapshot(message, callback){
 
 function saveImage(url, username, password, file, callback){
     let picStream;
-	
 	httpGet(url, username, password, (img) => {
 		picStream = fs.createWriteStream(file);
-		picStream.write(img);
+		picStream.write(img.rawImage);
 		picStream.on('close', function() {
 			adapter.log.debug('Image saved');
 			callback("OK");
@@ -156,7 +155,7 @@ const classCam = item => new Promise((resolve) => {
 		port: devData.port,
 		username: devData.user,
 		password: devData.pass,
-		timeout : 5000,
+		timeout : 10000,
 		preserveAddress: true
 	},(err) => {
 		if (!err) {
