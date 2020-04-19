@@ -1,6 +1,6 @@
 {
   "name": "iobroker.onvif",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ioBroker onvif adapter",
   "author": {
     "name": "Kirov Ilya",
