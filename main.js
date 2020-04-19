@@ -100,7 +100,9 @@ function getSnapshot(message, callback){
 				});
 			}
         });
-    }
+    } else {
+		adapter.log.warn('Event: getSnapshot. The adapter is not ready. Repeat after a few seconds.');
+	}
 }
 
 function saveFileSnapshot(message, callback){
@@ -120,7 +122,9 @@ function saveFileSnapshot(message, callback){
 				});
 			}
         });
-    }
+    } else {
+		adapter.log.warn('Event: getSnapshot. The adapter is not ready. Repeat after a few seconds.');
+	}
 }
 
 function saveImage(url, username, password, file, callback){
@@ -191,41 +195,43 @@ async function startCameras(){
 			let dev = item,
             devData = dev.common.data,
             cam;
-			if (devData.events === true) {
-				timeoutID[devData.id] = 'OK';
-				cam = cameras[dev._id];
-				// message subscription
-				if (typeof cam !== 'undefined'){
-					cam.createPullPointSubscription((err, data) => {
-						if (err) {
-							adapter.log.error("createPullPointSubscription: " + err);
-							updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
-						} else {
-							adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
-							updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
-							if (typeof timeoutID[devData.id] !== 'undefined'){
-								timeoutID[devData.id] = setTimeout(function tick() {
-									cam.pullMessages({timeout: 60000, messageLimit: 1}, (err, events) => {
-										if (typeof timeoutID[devData.id] !== 'undefined'){
-											if (err) {
-												adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
-				
-												timeoutID[devData.id] = setTimeout(tick, 1000);
-											} else {
-												adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
-												camEvents(devData.id, events.notificationMessage);											
-												timeoutID[devData.id] = setTimeout(tick, 200);
+			adapter.getState(devData.id + '.subscribeEvents', (err, state) => {
+				if ((devData.events === true)&&(state.val)) {
+					timeoutID[devData.id] = 'OK';
+					cam = cameras[dev._id];
+					// message subscription
+					if (typeof cam !== 'undefined'){
+						cam.createPullPointSubscription((err, data) => {
+							if (err) {
+								adapter.log.error("createPullPointSubscription: " + err);
+								updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
+							} else {
+								adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
+								updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
+								if (typeof timeoutID[devData.id] !== 'undefined'){
+									timeoutID[devData.id] = setTimeout(function tick() {
+										cam.pullMessages({timeout: 60000, messageLimit: 1}, (err, events) => {
+											if (typeof timeoutID[devData.id] !== 'undefined'){
+												if (err) {
+													adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
+					
+													timeoutID[devData.id] = setTimeout(tick, 1000);
+												} else {
+													adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
+													camEvents(devData.id, events.notificationMessage);											
+													timeoutID[devData.id] = setTimeout(tick, 200);
+												}
 											}
-										}
-									});
-								}, 200);
+										});
+									}, 200);
+								}
 							}
-						}
-					});
+						});
+					}
+				} else {
+					adapter.log.warn(`startCameras. This Camera/NVT ${devData.id} does not support PullPoint Events or subscribeEvents = false`);
 				}
-			} else {
-				adapter.log.warn(`startCameras. This Camera/NVT ${devData.id} does not support PullPoint Events`);
-			}
+			})
         }
     } catch (e) {
 		adapter.log.error("startCameras: " + e);  
@@ -820,6 +826,7 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 						type: 'device',
 						common: {data: devData}
 					});
+					
 					subOBJ.forEach(item => {
 						let nameTopic = devID + '.message.' + item.nameObj;
 						let value;
@@ -830,6 +837,7 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 						updateState(nameTopic, item.nameValue, value, {"type": typeof(value), "read": true, "write": false});
 						adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
 					});
+					updateState(dev_id, 'subscribeEvents', devData.events, {"type": "boolean", "read": true, "write": true});
 					adapter.log.debug('updateDev. resolve = OK');
 					resolve("OK");
 				}
@@ -923,7 +931,7 @@ function startAdapter(options) {
                 adapter.log.debug(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
 				if (!state.ack){
 					const devId = adapter.namespace + '.' + id.split('.')[2]; // iobroker device id
-					this.log.debug("devId = " + devId);
+					adapter.log.debug("devId = " + devId);
 				}
             } else {
                 // The state was deleted
@@ -959,11 +967,11 @@ function startAdapter(options) {
 							if (obj.callback){
 								adapter.sendTo(obj.from, obj.command, devices, obj.callback);
 							}
-						}, 1000);
+						}, 4000);
 					});
 				}
 				if (obj.command === 'getDevices') {
-					adapter.log.info('Received "getDevices" event');
+					adapter.log.debug('Received "getDevices" event');
 					getDevicesAdmin(devices => {
 						adapter.sendTo(obj.from, obj.command, devices, obj.callback);
 					});

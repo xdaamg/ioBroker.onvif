@@ -4,16 +4,16 @@
         "version": "0.1.2",
         "news": {
 			"0.1.2": {
-				"en": "Fixed uncaught exception: The \"chunk\" argument must be one of type string or Buffer",
-				"de": "Nicht erfasste Ausnahme behoben: Das Argument \"chunk\" muss vom Typ string oder Buffer sein",
-				"ru": "Исправлено необработанное исключение: аргумент \"chunk\" должен иметь тип string или Buffer",
-				"pt": "Exceção não capturada corrigida: o argumento \"chunk\" deve ser do tipo string ou Buffer",
-				"nl": "Niet-afgevangen uitzondering opgelost: het argument \"chunk\" moet een tekenreeks of buffer zijn",
-				"fr": "Correction de l'exception non interceptée: l'argument \"chunk\" doit être de type chaîne ou Buffer",
-				"it": "Eccezione non rilevata risolta: l'argomento \"chunk\" deve essere di tipo stringa o buffer",
-				"es": "Se corrigió la excepción no capturada: el argumento \"fragmento\" debe ser de tipo cadena o Buffer",
-				"pl": "Naprawiono nieprzechwycony wyjątek: Argument „chunk” musi być typu string lub Buffer",
-				"zh-cn": "修复未捕获的异常：“块”参数必须是字符串或缓冲区类型之一"
+				"en": "Add state 'subscribeEvents'",
+				"de": "Status 'subscribeEvents' hinzufügen",
+				"ru": "Добавить состояние 'subscribeEvents'",
+				"pt": "Adicionar estado 'subscribeEvents'",
+				"nl": "Staat 'subscribeEvents' toevoegen",
+				"fr": "Ajouter l'état 'subscribeEvents'",
+				"it": "Aggiungi stato 'iscrivitiEventi'",
+				"es": "Añadir estado 'subscribeEvents'",
+				"pl": "Dodaj stan „subscribeEvents”",
+				"zh-cn": "添加状态“ subscribeEvents”"
 			},
 			"0.1.1": {
 				"en": "Port polling bug fixed",

@@ -56,6 +56,9 @@ function getSnapshot(caption){
 *caption* - заголовок для картинки в телеграме.
 Вызывать можно как по событию, так и по кнопке/рассписанию
 
+### Сообщения и авариии от Камеры
+Чтобы отключить подписку на сообщения и аварии от камеры, необходимо выставить состояние 'subscribeEvents' = false и перезапустить адаптер.
+
 ## ENG
 
 ### Customization
@@ -102,7 +105,14 @@ function getSnapshot(caption){
 
 It is possible to cause both on an event, and according to the button/schedule
 
-## Changelog
+### Messages and accidents from the Camera
+To disconnect the subscription to messages and alarms from the camera, you need to set the status 'subscribeEvents' = false and restart the adapter.
+
+## Changelog 
+
+### 0.1.2 (2020-04-19)
+* (haba1234) Fixed uncaught exception: The \"chunk\" argument must be one of type string or Buffer
+* (haba1234) Add state 'subscribeEvents'
 
 ### 0.1.1 (2020-04-18)
 * (haba1234) Port polling bug fixed
