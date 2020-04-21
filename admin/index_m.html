@@ -11,7 +11,6 @@
     <script type="text/javascript" src="../../lib/js/materialize.js"></script>
     <script type="text/javascript" src="../../js/adapter-settings.js"></script>
 	<script type="text/javascript" src="words.js"></script>
-	
  <style>
   .m .col .select-wrapper+label {
    top: -26px;  
@@ -27,6 +26,7 @@
         namespaceLen = namespace.length;
 	var Snapshot = [];
 	var discoveryRunning = false;
+	var instanceModSettings;
 	
     // the function loadSettings has to exist ...
     function load(settings, onChange) {
@@ -85,6 +85,7 @@
 			$('#progressBar').addClass('hide');
         });
     }
+	
     $(document).ready(function(){
         $('#discovery').off('click').on('click', function () {
 			$('#discovery').addClass('pulse disabled');
@@ -93,7 +94,23 @@
 			$('#progressBar').removeClass('hide');
         });
         $('.modal').modal();
-		console.log('$(document).ready');
+		
+		var elem = document.querySelector('#modalsettings');
+		instanceModSettings = M.Modal.init(elem, {
+			dismissible: true, // Modal can be dismissed by clicking outside of the modal
+			onOpenStart: function(modal) { // Callback for Modal open. Modal and trigger parameters available.
+				console.log(modal);
+			},
+			onCloseStart: function(modal) { // Callback for Modal close
+				console.log(modal);
+				var elem = modal.querySelector('#nameCard');
+				console.log($('#nameCard').val());
+				//console.log($('#nameCard').text());
+				//console.log(elem.text());
+				console.log($(modal.activeElement).attr('id'));
+			}
+		});
+
         getDevices();
         socket.on('objectChange', function (id, obj) {
             if (id.substring(0, namespaceLen) !== namespace) return;
@@ -108,14 +125,16 @@
         var title = dev.common.name, //"192.168.101.3:80"
             id = dev._id, //"onvif.0.192_168_101_3_80"
             info = dev.common.data.info.model,
-            buttons = '<a name="delete" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">delete</i></a>',
+			button1 = '<a name="settings" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">settings</i></a>',
+            button2 = '<a name="delete" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">delete</i></a>',
             card = '<div id="' + id + '" class="device col s12 m6 l4 xl3">'+
                 '<div class="card hoverable">'+
                 '<div class="card-content">'+
                 '<span class="card-title">'+title+'</span>'+
                 '<div class="card-image"><img id="img' + id + '" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="/></div>'+
                 info+
-                buttons+
+				button2+
+                button1+
                 '</div>'+
                 '</div>'+
                 '</div>';
@@ -144,13 +163,12 @@
                 name = dev_block.find(".card-title").text();
             deleteConfirmation(id, name);
         });
-//        $("a.btn-floating[name='edit']").click(function(e) {
-//            var dev_block = $(this).parents("div.device"),
-//                id = dev_block.attr("id"),
-//                name = dev_block.find(".card-title").text();
-//            // editName(id, name);
-//            openReval(e, id, name);
-//        });
+        $("a.btn-floating[name='settings']").click(function(e) {
+            var dev_block = $(this).parents("div.device"),
+                id = dev_block.attr("id"),
+                name = dev_block.find(".card-title").text();
+            settingsCamera(dev_block, id, name);
+        });
 //        $("a.btn[name='done']").click(function(e) {
 //            var dev_block = $(this).parents("div.device"),
 //                id = dev_block.attr("id"),
@@ -161,6 +179,44 @@
 //            closeReval(e);
 //        });
     }
+	
+	function settingsCamera(dev_block, id, name) {
+		sendTo(null, 'getSettingsCamera', {id: id}, function (obj) {
+			if (obj) {
+				console.log('Recived id: ' + id + ' - msg = ' + JSON.stringify(obj));
+				$('#nameCard').val(obj.common.data.name);
+				$('#manufacturer').text('manufacturer: ' + obj.common.data.info.manufacturer);
+				$('#model').text('model: ' + obj.common.data.info.model);
+				$('#firmwareVersion').text('firmwareVersion: ' + obj.common.data.info.firmwareVersion);
+				$('#serialNumber').text('serialNumber: ' + obj.common.data.info.serialNumber);
+				$('#hardwareId').text('hardwareId: ' + obj.common.data.info.hardwareId);
+				$('#userDevice').val(obj.common.data.user);
+				$('#passDevice').val(obj.common.data.pass);
+				if ((obj.common.data.events === true) || (obj.common.data.events === 'true')){
+					$('#subscribeEvents').prop('checked', true);
+				} else {
+					$('#subscribeEvents').prop('checked', false);
+				}
+				//$("#modalsettings a.btn[name='save']").unbind("click");
+				//$("#modalsettings a.btn[name='save']").click(function(e) {
+				//	console.log('#nameCard: ' + $('#nameCard').val());
+				//	settingsDevice(dev_block, id);
+				//});
+				//$('#modalsettings').modal('open');//.open();//
+				instanceModSettings.open();
+			}
+		});
+    }
+	
+	function settingsDevice(dev_block, id) {
+		var options = {
+            nameCard: $('#nameCard').val(),
+            userDevice: $('#userDevice').val(),
+            passDevice: $('#passDevice').val()
+        };
+		console.log('#nameCard: ' + $('#nameCard').val());
+		dev_block.find(".card-title").text(options.nameCard);
+	}
 
     function deleteConfirmation(id, name) {
         var text = '"'+name+'" ('+id+')';
@@ -294,25 +350,25 @@
                 <div class="row">
                     <div class="input-field col s12 m6 l4 xl3">
                         <input class="value" type="text" id="start_range"/>
-                        <label class="translate" for="Start range" data-lang="Start range">Start range</label>
+                        <label class="translate" for="start_range" data-lang="start_range">start_range</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl3">
                         <input class="value" type="text" id="end_range"/>
-                        <label class="translate" for="End range">End range</label>
+                        <label class="translate" for="end_range">end_range</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl3">
                         <input class="value" type="text" id="ports"/>
-                        <label class="translate" for="Port list">Port list</label>
+                        <label class="translate" for="ports">ports</label>
                     </div>
                 </div>
                 <div class="row">
                     <div class="input-field col s12 m6 l4 xl4">
                         <input class="value" type="text" id="user"/>
-                        <label class="translate" for="User name">User name</label>
+                        <label class="translate" for="user">user</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl4">
                         <input class="value" type="password" id="pass"/>
-                        <label class="translate" for="Password">Password</label>
+                        <label class="translate" for="pass">pass</label>
                     </div>
                 </div>
             </div>
@@ -322,32 +378,39 @@
             </div>
         </div>
         <div class="materialize-dialogs m">
-            <div id="modal_add" class="modal">
+            <div id="modalsettings" class="modal">
                 <div class="modal-content">
-                    <div class="title translate" for="Add camera">Add camera</div>
+                    <div class="title translate" for="Settings camera">Settings camera</div>
                     <div class="row">
-                        <div class="input-field col s12 m6 l4 xl3">
-                            <input class="value" id="ip"/>
-                            <label class="translate" for="ip">IP</label>
+                        <div class="input-field col s12">
+                            <input class="value" type="text" id="nameCard"/>
+                            <label class="translate" for="Camera name">Camera name</label>
                         </div>
-                        <div class="input-field col s12 m6 l4 xl3">
-                            <input class="value" id="port"/>
-                            <label class="translate" for="Port">Port</label>
-                        </div>
+						<div class="col s12" id="manufacturer">manufacturer</div>
+						<div class="col s12" id="model">model</div>
+						<div class="col s12" id="firmwareVersion">firmwareVersion</div>
+						<div class="col s12" id="serialNumber">serialNumber</div>
+						<div class="col s12" id="hardwareId">hardwareId</div>
                     </div>
                     <div class="row">
-                        <div class="input-field col s12 m6 l4 xl4">
-                            <input class="value" id="c_user"/>
-                            <label class="translate" for="User name">User name</label>
-                        </div>
-                        <div class="input-field col s12 m6 l4 xl4">
-                            <input class="value" id="c_pass"/>
-                            <label class="translate" for="Password">Password</label>
+						<div class="input-field col s12 m6 l4 xl3">
+							<input class="value" type="text" id="userDevice"/>
+							<label class="translate" for="user">user</label>
+						</div>
+                        <div class="input-field col s12 m6 l4 xl3">
+                            <input class="value" type="password" id="passDevice"/>
+                            <label class="translate" for="pass">pass</label>
                         </div>
                     </div>
+					<div class="row">
+						<div class="col s12">
+							<input type="checkbox" class="value" id="subscribeEvents"/>
+							<span class="translate" for="subscribeEvents">subscribeEvents</span>
+						</div>
+					</div>
                 </div>
                 <div class="modal-footer">
-                    <a id="add" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat" data-result="true">Create</a>
+                    <a id="save" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" for="save" data-result="true">save</a>
                     <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" for="Cancel">Cancel</a>
                 </div>
             </div>
@@ -363,7 +426,7 @@
 					</div>
                 </div>
                 <div class="modal-footer">
-                    <a name="yes" href="#!" class="modal-action modal-close waves-effect waves-green btn green translate" for="Yes">Yes</a>
+                    <a name="yes" href="#!" class="modal-action modal-close waves-effect waves-green btn green translate" for="yes">yes</a>
                     <a href="#!" class="modal-action modal-close waves-effect waves-red btn-flat translate" for="Cancel">Cancel</a>
                 </div>
             </div>

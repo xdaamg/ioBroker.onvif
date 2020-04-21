@@ -140,6 +140,28 @@ function saveImage(url, username, password, file, callback){
 	});
 }
 
+function getSettingsCamera(msg, callback){
+	var id = msg.id;
+        //objId = id.replace(adapter.namespace+'.', '');
+	adapter.log.info("getForeignState. objId: " + id);	                  
+	adapter.getForeignObject(id, (error, obj) => {
+		if (!error) {
+			adapter.log.info("getForeignState: " + JSON.stringify(obj));
+			adapter.getState(id + '.subscribeEvents', (err, state) => {
+				if (err) {
+					callback && callback();
+				} else {
+					obj.common.data.events = state.val;
+					callback && callback(obj);
+				}
+			})
+		} else {
+			adapter.log.error(JSON.stringify(error));
+			callback && callback();
+		}
+	});
+}
+
 async function getDevices(){
 	return new Promise((resolve, reject) => {
 		adapter.getDevices((err, result) => {
@@ -189,7 +211,7 @@ async function startCameras(){
 		await setCameras(devices);
 		adapter.log.debug('startCameras. cameras: ' + JSON.stringify(cameras));
 		if (Object.keys(cameras).length == 0){
-			adapter.log.warn("startCameras: Camera/NVT unavailables");
+			adapter.log.warn("startCameras: Cameras/NVT unavailables");
 			timeoutID.Restart = setTimeout(startCameras, 600000); // Restart adapter 10 min
 		} else for (let item of devices) {
 			let dev = item,
@@ -791,7 +813,9 @@ async function processScannedDevices(devices) {
 						adapter.log.debug('processScannedDevices. currDevs.indexOf(dev.id) = ' + currDevs.indexOf(dev.id));
 						if (currDevs.indexOf(dev.id) == -1) {
 							newInstances.push(dev);
-							let str = await updateDev(dev.id, dev.name, dev, dev.sub_obj);
+							let sub_obj = dev.sub_obj;
+							delete dev.sub_obj;
+							let str = await updateDev(dev.id, dev.name, dev, sub_obj);
 							adapter.log.debug('processScannedDevices ' + str);
 						}
 					}
@@ -809,7 +833,8 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
     adapter.log.debug('создать dev_id: ' + JSON.stringify(dev_id));
     adapter.log.debug('создать devData: ' + JSON.stringify(devData));
 	adapter.log.debug('создать sub_obj: ' + JSON.stringify(sub_obj));
-    return new Promise((resolve, reject) => {adapter.setObjectNotExists(dev_id, {
+    return new Promise((resolve, reject) => {
+		adapter.setObjectNotExists(dev_id, {
 			type: 'device',
 			common: {name: dev_name, data: devData}
 		}, {}, obj => {
@@ -992,6 +1017,12 @@ function startAdapter(options) {
 					adapter.log.debug('Received "saveFileSnapshot" event (message.id: ' + JSON.stringify(obj.message) + ')');
 					saveFileSnapshot(obj.message, (error, img) => {
 						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
+					});
+				}
+				if (obj.command === 'getSettingsCamera') {
+					adapter.log.debug('Received "getSettingsCamera" event (message.id: ' + JSON.stringify(obj.message) + ')');
+					getSettingsCamera(obj.message, (settings) => {
+						adapter.sendTo(obj.from, obj.command, settings, obj.callback);
 					});
 				}
          	}

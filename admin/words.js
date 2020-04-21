@@ -2,16 +2,16 @@
 'use strict';
 
 systemDictionary = {
-    'template adapter settings': {
-        'en': 'Adapter settings for template',
-        'de': 'Adaptereinstellungen für template',
-        'ru': 'Настройки адаптера для template',
-        'pt': 'Configurações do adaptador para template',
-        'nl': 'Adapterinstellingen voor template',
-        'fr': "Paramètres d'adaptateur pour template",
-        'it': "Impostazioni dell'adattatore per template",
-        'es': 'Ajustes del adaptador para template',
-        'pl': 'Ustawienia adaptera dla template',
+    'Onvif adapter settings': {
+        'en': 'Adapter settings for Onvif',
+        'de': 'Adaptereinstellungen für Onvif',
+        'ru': 'Настройки адаптера для Onvif',
+        'pt': 'Configurações do adaptador para Onvif',
+        'nl': 'Adapterinstellingen voor Onvif',
+        'fr': "Paramètres d'adaptateur pour Onvif",
+        'it': "Impostazioni dell'adattatore per Onvif",
+        'es': 'Ajustes del adaptador para Onvif',
+        'pl': 'Ustawienia adaptera dla Onvif',
         'zh-cn': 'template的适配器设置'
     },
 	"Scan cameras": {
@@ -26,7 +26,7 @@ systemDictionary = {
     "pl": "Skanuj kamery",
     "zh-cn": "扫描相机"
   },
-  "Start range": {
+  "start_range": {
     "en": "Start range",
     "de": "Startbereich",
     "ru": "Начало диапазона",
@@ -38,7 +38,7 @@ systemDictionary = {
     "pl": "Zakres początkowy",
     "zh-cn": "起始范围"
   },
-  "End range": {
+  "end_range": {
     "en": "End range",
     "de": "Endbereich",
     "ru": "Конец диапазона",
@@ -50,7 +50,7 @@ systemDictionary = {
     "pl": "Zakres końcowy",
     "zh-cn": "终点范围"
   },
-  "Port list": {
+  "ports": {
     "en": "Port list",
     "de": "Portliste",
     "ru": "Список портов",
@@ -62,7 +62,7 @@ systemDictionary = {
     "pl": "Lista portów",
     "zh-cn": "端口列表"
   },
-  "User name": {
+  "user": {
     "en": "User name",
     "de": "Nutzername",
     "ru": "Имя пользователя",
@@ -74,7 +74,7 @@ systemDictionary = {
     "pl": "Nazwa Użytkownika",
     "zh-cn": "用户名"
   },
-  "Password": {
+  "pass": {
     "en": "Password",
     "de": "Passwort",
     "ru": "Пароль",
@@ -110,22 +110,10 @@ systemDictionary = {
     "pl": "anulować",
     "zh-cn": "取消"
   },
-  "Add camera": {
-    "en": "Add camera",
-    "de": "Kamera hinzufügen",
-    "ru": "Добавить камеру",
-    "pt": "Adicionar câmera",
-    "nl": "Camera toevoegen",
-    "fr": "Ajouter une caméra",
-    "it": "Aggiungi fotocamera",
-    "es": "Agregar cámara",
-    "pl": "Dodaj kamerę",
-    "zh-cn": "新增相机"
-  },
-  "Yes": {
+  "yes": {
     "en": "Yes",
     "de": "Ja",
-    "ru": "Да",
+    "ru": "да",
     "pt": "sim",
     "nl": "Ja",
     "fr": "Oui",
@@ -133,30 +121,6 @@ systemDictionary = {
     "es": "si",
     "pl": "tak",
     "zh-cn": "是"
-  },
-  "Port": {
-    "en": "Port",
-    "de": "Hafen",
-    "ru": "Порт",
-    "pt": "Porta",
-    "nl": "Haven",
-    "fr": "Port",
-    "it": "Porta",
-    "es": "Puerto",
-    "pl": "Port",
-    "zh-cn": "港口"
-  },
-  "IP": {
-    "en": "IP",
-    "de": "IP",
-    "ru": "IP",
-    "pt": "IP",
-    "nl": "IK P",
-    "fr": "IP",
-    "it": "IP",
-    "es": "IP",
-    "pl": "IP",
-    "zh-cn": "知识产权"
   },
   "Confirm deletion": {
     "en": "Confirm deletion",
@@ -181,5 +145,77 @@ systemDictionary = {
     "es": "¿Realmente quieres eliminar el dispositivo?",
     "pl": "Czy naprawdę chcesz usunąć urządzenie?",
     "zh-cn": "您真的想删除设备吗？"
+  },
+  "Settings camera": {
+    "en": "Settings camera",
+    "de": "Einstellungen Kamera",
+    "ru": "Настройки камеры",
+    "pt": "Câmera de configurações",
+    "nl": "Instellingen camera",
+    "fr": "Paramètres caméra",
+    "it": "Fotocamera impostazioni",
+    "es": "Ajustes de la cámara",
+    "pl": "Ustawienia kamery",
+    "zh-cn": "设置相机"
+  },
+  "Camera name": {
+    "en": "Camera name",
+    "de": "Kameraname",
+    "ru": "Название камеры",
+    "pt": "Nome da câmera",
+    "nl": "Cameranaam",
+    "fr": "Nom de la caméra",
+    "it": "Nome della telecamera",
+    "es": "Nombre de la cámara",
+    "pl": "Nazwa kamery",
+    "zh-cn": "相机名称"
+  },
+  "timeout": {
+    "en": "Response timeout",
+    "de": "Antwortzeitlimit",
+    "ru": "Время ожидания ответа",
+    "pt": "Tempo limite de resposta",
+    "nl": "Time-out van reactie",
+    "fr": "Délai de réponse",
+    "it": "Timeout di risposta",
+    "es": "Tiempo de espera de respuesta",
+    "pl": "Limit czasu odpowiedzi",
+    "zh-cn": "响应超时"
+  },
+  "ms": {
+    "en": "milliseconds",
+    "de": "Millisekunden",
+    "ru": "миллисекунды",
+    "pt": "milissegundos",
+    "nl": "milliseconden",
+    "fr": "millisecondes",
+    "it": "millisecondi",
+    "es": "milisegundos",
+    "pl": "milisekundy",
+    "zh-cn": "毫秒"
+  },
+  "subscribeEvents": {
+    "en": "subscribe events cameras",
+    "de": "Abonnieren Sie Ereigniskameras",
+    "ru": "подписаться на события камеры",
+    "pt": "assinar eventos câmeras",
+    "nl": "abonneren evenementen camera's",
+    "fr": "souscrire des caméras d'événements",
+    "it": "iscriviti alle telecamere degli eventi",
+    "es": "suscribirse cámaras de eventos",
+    "pl": "subskrybuj kamery wydarzeń",
+    "zh-cn": "订阅活动相机"
+  },
+  "save": {
+    "en": "Save",
+    "de": "sparen",
+    "ru": "Сохранить",
+    "pt": "Salve ",
+    "nl": "Opslaan",
+    "fr": "sauvegarder",
+    "it": "Salva",
+    "es": "Salvar",
+    "pl": "Zapisać",
+    "zh-cn": "保存"
   }
 };
