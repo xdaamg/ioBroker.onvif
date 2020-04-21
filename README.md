@@ -108,7 +108,12 @@ It is possible to cause both on an event, and according to the button/schedule
 ### Messages and accidents from the Camera
 To disconnect the subscription to messages and alarms from the camera, you need to set the status 'subscribeEvents' = false and restart the adapter.
 
-## Changelog 
+## Changelog
+
+### 0.2.0 (2020-04-21)
+* (haba1234) Added camera settings
+* (haba1234) Changes in the structure of objects (ATTENTION! After updating, delete cameras and add again)
+* (haba1234) Fixed issue [#9](https://github.com/Haba1234/ioBroker.onvif/issues/9)
 
 ### 0.1.2 (2020-04-19)
 * (haba1234) Fixed uncaught exception: The \"chunk\" argument must be one of type string or Buffer

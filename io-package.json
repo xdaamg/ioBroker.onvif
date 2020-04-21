@@ -1,8 +1,20 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.1.2",
+        "version": "0.2.0",
         "news": {
+			"0.2.0": {
+				"en": "Added camera settings. Bug fixes.",
+				"de": "Kameraeinstellungen hinzugefügt. Fehlerbehebung.",
+				"ru": "Добавлены настройки камеры. Исправление ошибок.",
+				"pt": "Adicionadas configurações da câmera. Correções de bugs.",
+				"nl": "Camera-instellingen toegevoegd. Bugfixes.",
+				"fr": "Ajout de paramètres de caméra. Corrections de bugs.",
+				"it": "Aggiunte impostazioni della fotocamera. Correzioni di bug.",
+				"es": "Se agregaron configuraciones de la cámara. Corrección de errores.",
+				"pl": "Dodano ustawienia aparatu. Poprawki błędów",
+				"zh-cn": "添加了相机设置。 Bug修复。"
+			},
 			"0.1.2": {
 				"en": "Add state 'subscribeEvents'",
 				"de": "Status 'subscribeEvents' hinzufügen",

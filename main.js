@@ -16,8 +16,6 @@ const url = require('url');
 const fs = require('fs');
 const inherits = require('util').inherits;
 
-let cam1, cam2;
-
 /**
  * The adapter instance
  * @type {ioBroker.Adapter}
@@ -83,8 +81,11 @@ function httpGet(url, username, password, callback){
 }
 
 function getSnapshot(message, callback){
-    let cam = cameras[message.id];
-	adapter.log.debug('getSnapshot. message.id: ' + JSON.stringify(message.id));
+	let id = message.id,
+        objId = adapter.namespace+'.' + id;
+    let cam = cameras[objId];
+	
+	adapter.log.debug('getSnapshot. message.id: ' + JSON.stringify(objId));
 	adapter.log.debug('getSnapshot. cam: ' + JSON.stringify(cam));
     if (cam) {
         // get snapshot
@@ -106,7 +107,9 @@ function getSnapshot(message, callback){
 }
 
 function saveFileSnapshot(message, callback){
-    let cam = cameras[message.id];
+    let id = message.id,
+        objId = adapter.namespace+'.' + id;
+    let cam = cameras[objId];
 	
     if (cam) {
         // get snapshot
@@ -141,17 +144,17 @@ function saveImage(url, username, password, file, callback){
 }
 
 function getSettingsCamera(msg, callback){
-	var id = msg.id;
-        //objId = id.replace(adapter.namespace+'.', '');
-	adapter.log.info("getForeignState. objId: " + id);	                  
-	adapter.getForeignObject(id, (error, obj) => {
+	var id = msg.id,
+        objId = adapter.namespace+'.' + id;
+	adapter.log.debug("getForeignState. objId: " + objId);	                  
+	adapter.getForeignObject(objId, (error, obj) => {
 		if (!error) {
-			adapter.log.info("getForeignState: " + JSON.stringify(obj));
-			adapter.getState(id + '.subscribeEvents', (err, state) => {
+			adapter.log.debug("getForeignState: " + JSON.stringify(obj));
+			adapter.getState(objId + '.subscribeEvents', (err, state) => {
 				if (err) {
 					callback && callback();
 				} else {
-					obj.common.data.events = state.val;
+					obj.native.subscribeEvents = state.val;
 					callback && callback(obj);
 				}
 			})
@@ -159,6 +162,25 @@ function getSettingsCamera(msg, callback){
 			adapter.log.error(JSON.stringify(error));
 			callback && callback();
 		}
+	});
+}
+
+function setChangeCam(msg, callback){
+	var id = msg.id,
+        objId = adapter.namespace+'.' + id;
+	adapter.log.debug("setChangeCam. objId: " + objId);	
+	
+	adapter.extendObject(objId, {
+		common: {name: msg.name},
+		native: {
+			user: msg.user,
+			pass: msg.pass,
+			subscribeEvents: msg.events
+		}
+	}, obj => {
+		adapter.log.debug("setChangeCam. newObj: " + obj);
+		updateState(objId, 'subscribeEvents', msg.events, {"type": "boolean", "read": true, "write": true});
+		callback && callback(obj);
 	});
 }
 
@@ -174,7 +196,7 @@ async function getDevices(){
 
 const classCam = item => new Promise((resolve) => {
 	adapter.log.debug('classCam: item = ' + JSON.stringify(item));
-	let devData = item.common.data,
+	let devData = item.native,
 		cam;
 	cam = new MyCam({
 		hostname: devData.ip,
@@ -215,7 +237,7 @@ async function startCameras(){
 			timeoutID.Restart = setTimeout(startCameras, 600000); // Restart adapter 10 min
 		} else for (let item of devices) {
 			let dev = item,
-            devData = dev.common.data,
+            devData = dev.native,
             cam;
 			adapter.getState(devData.id + '.subscribeEvents', (err, state) => {
 				if ((devData.events === true)&&(state.val)) {
@@ -726,12 +748,12 @@ const discoveryClassCam = (ip_entry, user, pass, port_entry) => new Promise((res
 					ip: ip_entry,
 					cam_date: got_date,
 					info: got_info,
-					events: hasTopics, 
+					events: hasTopics,
+					subscribeEvents: hasTopics,
 					live_stream_tcp: got_live_stream_tcp,
 					live_stream_udp: got_live_stream_udp,
 					live_stream_multicast: got_live_stream_multicast,
 					replay_stream: got_replay_stream,
-					//cam_obj: cam_obj,
 					sub_obj: sub_obj
 				};
 				callback();
@@ -802,7 +824,7 @@ async function processScannedDevices(devices) {
 				adapter.log.debug('processScannedDevices. result = ' + JSON.stringify(result));
 				result.forEach(item => {
 					if (item._id) {
-						currDevs.push(item.common.data.id);
+						currDevs.push(item.native.id);
 					}
 				});
 				adapter.log.debug('processScannedDevices. currDevs = ' + JSON.stringify(currDevs));
@@ -836,7 +858,8 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
     return new Promise((resolve, reject) => {
 		adapter.setObjectNotExists(dev_id, {
 			type: 'device',
-			common: {name: dev_name, data: devData}
+			common: {name: dev_name},
+			native: devData
 		}, {}, obj => {
 			let devID = dev_id;
 			let subOBJ = sub_obj;
@@ -849,7 +872,7 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 					// if update
 					adapter.extendObject(devID, {
 						type: 'device',
-						common: {data: devData}
+						native: devData
 					});
 					
 					subOBJ.forEach(item => {
@@ -862,7 +885,7 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 						updateState(nameTopic, item.nameValue, value, {"type": typeof(value), "read": true, "write": false});
 						adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
 					});
-					updateState(dev_id, 'subscribeEvents', devData.events, {"type": "boolean", "read": true, "write": true});
+					updateState(dev_id, 'subscribeEvents', devData.subscribeEvents, {"type": "boolean", "read": true, "write": true});
 					adapter.log.debug('updateDev. resolve = OK');
 					resolve("OK");
 				}
@@ -1002,27 +1025,33 @@ function startAdapter(options) {
 					});
 				}
 				if (obj.command === 'deleteDevice') {
-					adapter.log.warn('Received "deleteDevice" event (message.id: ' + JSON.stringify(obj.message) + ')');
+					adapter.log.warn('Received "deleteDevice" event (message: ' + JSON.stringify(obj.message) + ')');
 					deleteDevice(obj.message, (err) => {
 						if (obj.callback) adapter.sendTo(obj.from, obj.command, err, obj.callback);
 					});
 				}
 				if (obj.command === 'getSnapshot') {
-					adapter.log.debug('Received "getSnapshot" event (message.id: ' + JSON.stringify(obj.message) + ')');
+					adapter.log.debug('Received "getSnapshot" event (message: ' + JSON.stringify(obj.message) + ')');
 					getSnapshot(obj.message, (error, img) => {
 						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
 					});
 				}
 				if (obj.command === 'saveFileSnapshot') {
-					adapter.log.debug('Received "saveFileSnapshot" event (message.id: ' + JSON.stringify(obj.message) + ')');
+					adapter.log.debug('Received "saveFileSnapshot" event (message: ' + JSON.stringify(obj.message) + ')');
 					saveFileSnapshot(obj.message, (error, img) => {
 						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
 					});
 				}
 				if (obj.command === 'getSettingsCamera') {
-					adapter.log.debug('Received "getSettingsCamera" event (message.id: ' + JSON.stringify(obj.message) + ')');
+					adapter.log.debug('Received "getSettingsCamera" event (message: ' + JSON.stringify(obj.message) + ')');
 					getSettingsCamera(obj.message, (settings) => {
 						adapter.sendTo(obj.from, obj.command, settings, obj.callback);
+					});
+				}
+				if (obj.command === 'setChangeCam') {
+					adapter.log.debug('Received "setChangeCam" event (message: ' + JSON.stringify(obj.message) + ')');
+					setChangeCam(obj.message, (change) => {
+						adapter.sendTo(obj.from, obj.command, change, obj.callback);
 					});
 				}
          	}

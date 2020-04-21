@@ -75,7 +75,7 @@
             ports: $('#ports').val(),
             user: $('#user').val(),
             pass: $('#pass').val()
-        };
+        }
         console.log(options);
         sendTo(null, 'discovery', options, function (result) {
             console.log('discovery: ' + result);
@@ -99,23 +99,32 @@
 		instanceModSettings = M.Modal.init(elem, {
 			dismissible: true, // Modal can be dismissed by clicking outside of the modal
 			onOpenStart: function(modal) { // Callback for Modal open. Modal and trigger parameters available.
-				console.log(modal);
+				//console.log(modal);
 				if (M) M.updateTextFields();
-			}//,
-			//onCloseStart: function(modal) { // Callback for Modal close
-			//	console.log(modal);
-			//	var elem = modal.querySelector('#nameCard');
-			//	console.log($('#nameCard').val());
-			//	console.log($(modal.activeElement).attr('id'));
-			//}
+			}
 		});
 		
 		$('#save').on('click', function () {
-			console.log('save');
 			console.log($('#nameCard').val());
+			console.log($('#idCam').text());
+			var id = $('#idCam').text();
+			var msg = {
+				'id': id,
+				'name': $('#nameCard').val(),
+				'user': $('#userDevice').val(),
+				'pass': $('#passDevice').val(),
+				'events': $('#subscribeEvents').prop('checked')
+			}
+			console.log('msg: ' + JSON.stringify(msg));
+			sendTo(null, 'setChangeCam', msg, function (result) {
+				console.log('setChangeCam: ' + result);
+			});
+			console.log('id: ' + id);
+			$('#'+ id + ' .card-title').text($('#nameCard').val());
 		});
 
         getDevices();
+		
         socket.on('objectChange', function (id, obj) {
             if (id.substring(0, namespaceLen) !== namespace) return;
             if (obj && obj.type == "device") {
@@ -126,9 +135,9 @@
     });
 
     function getCard(dev) {
-        var title = dev.common.name, //"192.168.101.3:80"
-            id = dev._id, //"onvif.0.192_168_101_3_80"
-            info = dev.common.data.info.model,
+        var title = dev.common.name,
+            id = dev.native.id, 
+            info = dev.native.info.model,
 			button1 = '<a name="settings" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">settings</i></a>',
             button2 = '<a name="delete" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">delete</i></a>',
             card = '<div id="' + id + '" class="device col s12 m6 l4 xl3">'+
@@ -159,9 +168,10 @@
         $('#devices').html(html);
         for (var i=0;i < devices.length; i++) {
             var d = devices[i];
-            getSnapshot(d._id);
+            getSnapshot(d.native.id);
         }
         $("a.btn-floating[name='delete']").click(function() {
+			console.log('this: ' + JSON.stringify(this));
             var dev_block = $(this).parents("div.device"),
                 id = dev_block.attr("id"),
                 name = dev_block.find(".card-title").text();
@@ -187,26 +197,22 @@
 	function settingsCamera(dev_block, id, name) {
 		sendTo(null, 'getSettingsCamera', {id: id}, function (obj) {
 			if (obj) {
-				console.log('Recived id: ' + id + ' - msg = ' + JSON.stringify(obj));
-				$('#nameCard').val(obj.common.data.name);
-				$('#manufacturer').text('manufacturer: ' + obj.common.data.info.manufacturer);
-				$('#model').text('model: ' + obj.common.data.info.model);
-				$('#firmwareVersion').text('firmwareVersion: ' + obj.common.data.info.firmwareVersion);
-				$('#serialNumber').text('serialNumber: ' + obj.common.data.info.serialNumber);
-				$('#hardwareId').text('hardwareId: ' + obj.common.data.info.hardwareId);
-				$('#userDevice').val(obj.common.data.user);
-				$('#passDevice').val(obj.common.data.pass);
-				if ((obj.common.data.events === true) || (obj.common.data.events === 'true')){
+				//console.log('Recived id: ' + id + ' - msg = ' + JSON.stringify(obj));
+				$('#idCam').text(id);
+				$('#nameCard').val(obj.common.name);
+				$('#manufacturer').text('manufacturer: ' + obj.native.info.manufacturer);
+				$('#model').text('model: ' + obj.native.info.model);
+				$('#firmwareVersion').text('firmwareVersion: ' + obj.native.info.firmwareVersion);
+				$('#serialNumber').text('serialNumber: ' + obj.native.info.serialNumber);
+				$('#hardwareId').text('hardwareId: ' + obj.native.info.hardwareId);
+				$('#userDevice').val(obj.native.user);
+				$('#passDevice').val(obj.native.pass);
+				if ((obj.native.subscribeEvents === true) || (obj.native.subscribeEvents === 'true')){
 					$('#subscribeEvents').prop('checked', true);
 				} else {
 					$('#subscribeEvents').prop('checked', false);
 				}
-				//$("#modalsettings a.btn[name='save']").unbind("click");
-				//$("#modalsettings a.btn[name='save']").click(function(e) {
-				//	console.log('#nameCard: ' + $('#nameCard').val());
-				//	settingsDevice(dev_block, id);
-				//});
-				//$('#modalsettings').modal('open');//.open();//
+
 				instanceModSettings.open();
 			}
 		});
@@ -251,7 +257,7 @@
 
     function getDevices() {
         sendTo(null, 'getDevices', {}, function (msg) {
-            //console.log('getDevices: ' + msg);
+            console.log('getDevices: ' + msg);
             if (msg) {
                 if (msg.error) {
                     showMessage(msg.error, _('Error'), 'alert');
@@ -306,7 +312,7 @@
     function getSnapshot(id){
 		console.log('id = ' + id);
 		Snapshot.forEach(idCam => {
-			//console.log('idCam = ' + JSON.stringify(idCam));
+			console.log('idCam = ' + JSON.stringify(idCam));
 			if ((idCam.id === id)&&(!idCam.img)){
 				idCam.img = true;
 				sendTo(null, 'getSnapshot', {id: id}, function (msg) {
@@ -390,6 +396,7 @@
                             <input class="value validate active" type="text" id="nameCard"/>
                             <label class="translate" for="Camera name">Camera name</label>
                         </div>
+						<div class="col s12 hide" id="idCam">idCam</div>
 						<div class="col s12" id="manufacturer">manufacturer</div>
 						<div class="col s12" id="model">model</div>
 						<div class="col s12" id="firmwareVersion">firmwareVersion</div>
