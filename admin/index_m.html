@@ -100,15 +100,19 @@
 			dismissible: true, // Modal can be dismissed by clicking outside of the modal
 			onOpenStart: function(modal) { // Callback for Modal open. Modal and trigger parameters available.
 				console.log(modal);
-			},
-			onCloseStart: function(modal) { // Callback for Modal close
-				console.log(modal);
-				var elem = modal.querySelector('#nameCard');
-				console.log($('#nameCard').val());
-				//console.log($('#nameCard').text());
-				//console.log(elem.text());
-				console.log($(modal.activeElement).attr('id'));
-			}
+				if (M) M.updateTextFields();
+			}//,
+			//onCloseStart: function(modal) { // Callback for Modal close
+			//	console.log(modal);
+			//	var elem = modal.querySelector('#nameCard');
+			//	console.log($('#nameCard').val());
+			//	console.log($(modal.activeElement).attr('id'));
+			//}
+		});
+		
+		$('#save').on('click', function () {
+			console.log('save');
+			console.log($('#nameCard').val());
 		});
 
         getDevices();
@@ -363,11 +367,11 @@
                 </div>
                 <div class="row">
                     <div class="input-field col s12 m6 l4 xl4">
-                        <input class="value" type="text" id="user"/>
+                        <input class="value validate" type="text" id="user"/>
                         <label class="translate" for="user">user</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl4">
-                        <input class="value" type="password" id="pass"/>
+                        <input class="value validate" type="password" id="pass"/>
                         <label class="translate" for="pass">pass</label>
                     </div>
                 </div>
@@ -383,7 +387,7 @@
                     <div class="title translate" for="Settings camera">Settings camera</div>
                     <div class="row">
                         <div class="input-field col s12">
-                            <input class="value" type="text" id="nameCard"/>
+                            <input class="value validate active" type="text" id="nameCard"/>
                             <label class="translate" for="Camera name">Camera name</label>
                         </div>
 						<div class="col s12" id="manufacturer">manufacturer</div>
@@ -394,12 +398,12 @@
                     </div>
                     <div class="row">
 						<div class="input-field col s12 m6 l4 xl3">
-							<input class="value" type="text" id="userDevice"/>
-							<label class="translate" for="user">user</label>
+							<input class="value validate active" type="text" id="userDevice"/>
+							<label class="translate" for="userDevice">user</label>
 						</div>
                         <div class="input-field col s12 m6 l4 xl3">
-                            <input class="value" type="password" id="passDevice"/>
-                            <label class="translate" for="pass">pass</label>
+                            <input class="value validate active" type="password" id="passDevice"/>
+                            <label class="translate" for="passDevice">pass</label>
                         </div>
                     </div>
 					<div class="row">

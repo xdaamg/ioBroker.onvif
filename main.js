@@ -181,7 +181,7 @@ const classCam = item => new Promise((resolve) => {
 		port: devData.port,
 		username: devData.user,
 		password: devData.pass,
-		timeout : 10000,
+		timeout : 15000,
 		preserveAddress: true
 	},(err) => {
 		if (!err) {
@@ -232,7 +232,7 @@ async function startCameras(){
 								updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
 								if (typeof timeoutID[devData.id] !== 'undefined'){
 									timeoutID[devData.id] = setTimeout(function tick() {
-										cam.pullMessages({timeout: 60000, messageLimit: 1}, (err, events) => {
+										cam.pullMessages({timeout: 10000, messageLimit: 1}, (err, events) => {
 											if (typeof timeoutID[devData.id] !== 'undefined'){
 												if (err) {
 													adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
@@ -241,11 +241,11 @@ async function startCameras(){
 												} else {
 													adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
 													camEvents(devData.id, events.notificationMessage);											
-													timeoutID[devData.id] = setTimeout(tick, 200);
+													timeoutID[devData.id] = setTimeout(tick, 1000);
 												}
 											}
 										});
-									}, 200);
+									}, 1000);
 								}
 							}
 						});
@@ -469,7 +469,7 @@ const discoveryClassCam = (ip_entry, user, pass, port_entry) => new Promise((res
 		username: user,
 		password: pass,
 		port: port_entry,
-		timeout : 10000,
+		timeout : 15000,
 		preserveAddress: true
 	}, function CamFunc(err) {
 		if (err) {
