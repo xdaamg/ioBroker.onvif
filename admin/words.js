@@ -74,7 +74,7 @@ systemDictionary = {
     "pl": "Nazwa Użytkownika",
     "zh-cn": "用户名"
   },
-  "pass": {
+  "password": {
     "en": "Password",
     "de": "Passwort",
     "ru": "Пароль",

@@ -1,7 +1,7 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "news": {
 			"0.2.0": {
 				"en": "Added camera settings. Bug fixes.",
@@ -112,7 +112,7 @@
         "platform": "Javascript/Node.js",
 		"main": "main.js",
         "icon": "onvif.png",
-        "enabled": false,
+        "enabled": true,
         "extIcon": "https://raw.githubusercontent.com/Haba1234/ioBroker.onvif/master/admin/onvif.png",
         "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
         "loglevel": "info",
@@ -127,12 +127,20 @@
             }
         ]
     },
+	"encryptedNative": [
+        "password"
+    ],
+    "protectedNative": [
+        "password"
+    ],
     "native": {
         "start_range": "192.168.1.1",
 		"end_range": "192.168.1.254",
+		"ip_list": null,
         "ports": "80, 7575, 8000, 8080, 8081, 8899",
         "user": "admin",
-		"pass": "admin"
+		"password": "admin",
+		"autostartDiscovery": false
     },
     "objects": [],
     "instanceObjects": [

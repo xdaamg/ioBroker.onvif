@@ -27,11 +27,36 @@
 	var Snapshot = [];
 	var discoveryRunning = false;
 	var instanceModSettings;
+	var secret = '';
+	var autostartDiscovery = false;
 	
     // the function loadSettings has to exist ...
     function load(settings, onChange) {
 		// example: select elements with id=key and class=value and insert value
-		if (!settings) return;
+		if (systemConfig) {
+                secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
+                loadHelper(settings, onChange);
+                return;
+            }
+            socket.emit('getObject', 'system.config', function (err, obj) {
+                secret = (obj.native ? obj.native.secret : '') || 'Zgfr56gFe87jJOM';
+                loadHelper(settings, onChange);
+            });	
+	}
+	
+	// This will be called by the admin adapter when the settings page loads
+
+	function loadHelper(settings, onChange) {
+		if (!settings) {
+			return;
+		}
+		console.log('settings.password: ' + settings.password);
+		var firstPassword = settings.password;
+		if (settings.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+			settings.password = decrypt(secret, settings.password);
+		}
+		console.log('settings.password: ' + settings.password);
+		
 		$('.value').each(function () {
 			var $key = $(this);
 			var id = $key.attr('id');
@@ -48,11 +73,24 @@
 					;
 			}
 		});
+		
 		onChange(false);
 		// reinitialize all the Materialize labels on the page if you are dynamically adding inputs:
 		if (M) M.updateTextFields();
+		
+		/*console.log('autostartDiscovery = ' + autostartDiscovery);
+		if (settings.autostartDiscovery) {
+			settings.password = firstPassword;
+			setTimeout(() => {
+				startDiscovery(settings, result => {
+					console.log('startDiscovery result = ' + result);
+					$('#autostartDiscovery').prop('checked', false);
+					onChange();
+				});
+			}, 1000);
+		}*/
 	}
-
+	
     // This will be called by the admin adapter when the user presses the save button
 	function save(callback) {
 		// example: select elements with class=value and build settings object
@@ -65,62 +103,74 @@
 				obj[$this.attr('id')] = $this.val();
 			}
 		});
+		
+		if (obj.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+			obj.password = encrypt(secret, obj.password);
+		}
+		
 		callback(obj);
 	}
 
-    function startDiscovery(){
+    function startDiscovery(settings, callback){
         var options = {
-            start_range: $('#start_range').val(),
-            end_range: $('#end_range').val(),
-            ports: $('#ports').val(),
-            user: $('#user').val(),
-            pass: $('#pass').val()
+            start_range: settings.start_range || $('#start_range').val(),
+            end_range: settings.end_range || $('#end_range').val(),
+            ports: settings.ports || $('#ports').val(),
+            user: settings.user || $('#user').val(),
+            password: settings.password || $('#password').val()
         }
-        console.log(options);
+        console.log('options' + options);
+		
+		$('#discovery').addClass('pulse disabled');
+		$('#progressBar').removeClass('hide');
+		discoveryRunning = true;
+		
         sendTo(null, 'discovery', options, function (result) {
-            console.log('discovery: ' + result);
-			if (result.length > 0) getDevices();
+            //console.log('discovery: ' + result);
+			if (result) getDevices();
 			$('#discovery').removeClass('pulse disabled');
 			discoveryRunning = false;
 			$('#progressBar').addClass('hide');
+			callback(true);
         });
     }
 	
+	function saveCard(){
+		console.log($('#nameCard').val());
+		console.log($('#idCam').text());
+		var id = $('#idCam').text();
+		var msg = {
+			'id': id,
+			'name': $('#nameCard').val(),
+			'user': $('#userDevice').val(),
+			'password': $('#passwordDevice').val(),
+			'events': $('#subscribeEvents').prop('checked')
+		}
+		//console.log('msg: ' + JSON.stringify(msg));
+		sendTo(null, 'setChangeCam', msg, function (result) {
+			//console.log('setChangeCam: ' + result);
+		});
+		console.log('id: ' + id);
+		$('#'+ id + ' .card-title').text($('#nameCard').val());
+	}
+	
     $(document).ready(function(){
         $('#discovery').off('click').on('click', function () {
-			$('#discovery').addClass('pulse disabled');
-			discoveryRunning = true;
             startDiscovery();
-			$('#progressBar').removeClass('hide');
         });
+		
         $('.modal').modal();
 		
 		var elem = document.querySelector('#modalsettings');
 		instanceModSettings = M.Modal.init(elem, {
 			dismissible: true, // Modal can be dismissed by clicking outside of the modal
 			onOpenStart: function(modal) { // Callback for Modal open. Modal and trigger parameters available.
-				//console.log(modal);
 				if (M) M.updateTextFields();
 			}
 		});
 		
 		$('#save').on('click', function () {
-			console.log($('#nameCard').val());
-			console.log($('#idCam').text());
-			var id = $('#idCam').text();
-			var msg = {
-				'id': id,
-				'name': $('#nameCard').val(),
-				'user': $('#userDevice').val(),
-				'pass': $('#passDevice').val(),
-				'events': $('#subscribeEvents').prop('checked')
-			}
-			console.log('msg: ' + JSON.stringify(msg));
-			sendTo(null, 'setChangeCam', msg, function (result) {
-				console.log('setChangeCam: ' + result);
-			});
-			console.log('id: ' + id);
-			$('#'+ id + ' .card-title').text($('#nameCard').val());
+			saveCard();
 		});
 
         getDevices();
@@ -132,6 +182,9 @@
                 getDevices();
             }
         });
+		
+		//console.log('#autostartDiscovery = ' + $('#autostartDiscovery').val());
+		//if (autostartDiscovery
     });
 
     function getCard(dev) {
@@ -171,7 +224,6 @@
             getSnapshot(d.native.id);
         }
         $("a.btn-floating[name='delete']").click(function() {
-			console.log('this: ' + JSON.stringify(this));
             var dev_block = $(this).parents("div.device"),
                 id = dev_block.attr("id"),
                 name = dev_block.find(".card-title").text();
@@ -206,7 +258,7 @@
 				$('#serialNumber').text('serialNumber: ' + obj.native.info.serialNumber);
 				$('#hardwareId').text('hardwareId: ' + obj.native.info.hardwareId);
 				$('#userDevice').val(obj.native.user);
-				$('#passDevice').val(obj.native.pass);
+				$('#passwordDevice').val(decrypt(secret, obj.native.password));
 				if ((obj.native.subscribeEvents === true) || (obj.native.subscribeEvents === 'true')){
 					$('#subscribeEvents').prop('checked', true);
 				} else {
@@ -257,7 +309,7 @@
 
     function getDevices() {
         sendTo(null, 'getDevices', {}, function (msg) {
-            console.log('getDevices: ' + msg);
+            //console.log('getDevices: ' + msg);
             if (msg) {
                 if (msg.error) {
                     showMessage(msg.error, _('Error'), 'alert');
@@ -315,17 +367,16 @@
 			console.log('idCam = ' + JSON.stringify(idCam));
 			if ((idCam.id === id)&&(!idCam.img)){
 				idCam.img = true;
-				sendTo(null, 'getSnapshot', {id: id}, function (msg) {
-					if (msg) {
-						if (msg.error) {
-							idCam.img = false;
-							showMessage(msg.error, _('Error'), 'alert');
+				setTimeout(function tick(){
+					sendTo(null, 'getSnapshot', {id: id}, function (msg) {
+						if (msg) {
+								console.log('Recived id.img = ' + id);
+								$("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg));
 						} else {
-							console.log('Recived id.img = ' + id);
-							$("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg));
+							setTimeout(tick, 2000);
 						}
-					}
-				});
+					});
+				}, 1000);
 			}
 		});
     }
@@ -373,14 +424,20 @@
                 </div>
                 <div class="row">
                     <div class="input-field col s12 m6 l4 xl4">
-                        <input class="value validate" type="text" id="user"/>
+                        <input class="value" type="text" id="user"/>
                         <label class="translate" for="user">user</label>
                     </div>
                     <div class="input-field col s12 m6 l4 xl4">
-                        <input class="value validate" type="password" id="pass"/>
-                        <label class="translate" for="pass">pass</label>
+                        <input class="value text" size="55" maxlength="55" type="password" id="password"/>
+                        <label class="translate active" for="password">password</label>
                     </div>
                 </div>
+				<div class="row">
+					<div class="col s12 hide">
+						<input type="checkbox" class="value" id="autostartDiscovery"/>
+						<span for="autostartDiscovery">autostartDiscovery</span>
+					</div>
+				</div>
             </div>
             <div class="modal-footer">
                 <a id="discovery" href="#!" class="modal-action modal-close waves-effect waves-green btn-flat translate" data-result="true" for="Start scan">Start scan</a>
@@ -393,7 +450,7 @@
                     <div class="title translate" for="Settings camera">Settings camera</div>
                     <div class="row">
                         <div class="input-field col s12">
-                            <input class="value validate active" type="text" id="nameCard"/>
+                            <input class="value active" type="text" id="nameCard"/>
                             <label class="translate" for="Camera name">Camera name</label>
                         </div>
 						<div class="col s12 hide" id="idCam">idCam</div>
@@ -405,12 +462,12 @@
                     </div>
                     <div class="row">
 						<div class="input-field col s12 m6 l4 xl3">
-							<input class="value validate active" type="text" id="userDevice"/>
+							<input class="value active" type="text" id="userDevice"/>
 							<label class="translate" for="userDevice">user</label>
 						</div>
                         <div class="input-field col s12 m6 l4 xl3">
-                            <input class="value validate active" type="password" id="passDevice"/>
-                            <label class="translate" for="passDevice">pass</label>
+                            <input class="value text" size="55" maxlength="55" type="password" id="passwordDevice"/>
+                            <label class="translate" for="passwordDevice">password</label>
                         </div>
                     </div>
 					<div class="row">

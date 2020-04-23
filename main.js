@@ -8,20 +8,21 @@
 
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
-const utils = require('@iobroker/adapter-core'); // Get common adapter utils
-const http = require('http');
-const Cam = require('onvif').Cam;
-const flow = require('nimble');
-const url = require('url');
-const fs = require('fs');
-const inherits = require('util').inherits;
+const utils 	= require('@iobroker/adapter-core'); // Get common adapter utils
+const tools 	= require(utils.controllerDir + '/lib/tools');
+const http 	 	= require('http');
+const Cam   	= require('onvif').Cam;
+const flow  	= require('nimble');
+const url   	= require('url');
+const fs    	= require('fs');
+const inherits 	= require('util').inherits;
 
 /**
  * The adapter instance
  * @type {ioBroker.Adapter}
  */
+let secret;
 let adapter;
-
 let isDiscovery = false;
 let cameras = {};
 let timeoutID = {};
@@ -103,6 +104,7 @@ function getSnapshot(message, callback){
         });
     } else {
 		adapter.log.warn('Event: getSnapshot. The adapter is not ready. Repeat after a few seconds.');
+		callback('not ready', null);
 	}
 }
 
@@ -174,7 +176,7 @@ function setChangeCam(msg, callback){
 		common: {name: msg.name},
 		native: {
 			user: msg.user,
-			pass: msg.pass,
+			password: tools.encrypt(secret, msg.password),
 			subscribeEvents: msg.events
 		}
 	}, obj => {
@@ -202,7 +204,7 @@ const classCam = item => new Promise((resolve) => {
 		hostname: devData.ip,
 		port: devData.port,
 		username: devData.user,
-		password: devData.pass,
+		password: tools.decrypt(secret, devData.password),
 		timeout : 15000,
 		preserveAddress: true
 	},(err) => {
@@ -253,7 +255,7 @@ async function startCameras(){
 								adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
 								updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
 								if (typeof timeoutID[devData.id] !== 'undefined'){
-									timeoutID[devData.id] = setTimeout(function tick() {
+									timeoutID[devData.id] = setTimeout(function tick(){
 										cam.pullMessages({timeout: 10000, messageLimit: 1}, (err, events) => {
 											if (typeof timeoutID[devData.id] !== 'undefined'){
 												if (err) {
@@ -483,13 +485,13 @@ function getDevicesAdmin(callback){
     });
 }
 
-const discoveryClassCam = (ip_entry, user, pass, port_entry) => new Promise((resolve) => {
+const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise((resolve) => {
 	let devices = {};
 	adapter.log.debug('discoveryClassCam: ' + ip_entry + ':' + port_entry);
 	new MyCam({
 		hostname: ip_entry,
 		username: user,
-		password: pass,
+		password: password,
 		port: port_entry,
 		timeout : 15000,
 		preserveAddress: true
@@ -499,7 +501,7 @@ const discoveryClassCam = (ip_entry, user, pass, port_entry) => new Promise((res
 			return resolve(devices);
 		}
 		let cam_obj = this;
-		adapter.log.info('cam_obj: ' + JSON.stringify(cam_obj));
+		adapter.log.debug('cam_obj: ' + JSON.stringify(cam_obj));
 		let sub_obj = [];
 		let got_date;
 		let got_info;
@@ -744,7 +746,7 @@ const discoveryClassCam = (ip_entry, user, pass, port_entry) => new Promise((res
 					ip: ip_entry,
 					port: port_entry,
 					user: user,
-					pass: pass,
+					password: tools.encrypt(secret, password),
 					ip: ip_entry,
 					cam_date: got_date,
 					info: got_info,
@@ -781,11 +783,17 @@ async function discovery(options) {
 			port_list = options.ports || adapter.config.ports;
 			port_list = port_list.split(',').map(item => item.trim());
 		let user = options.user || adapter.config.user,  						// 'admin'
-			pass = options.pass || adapter.config.pass;  						// 'admin'
-
-		let ip_list = generate_range(start_range, end_range);
-		if (ip_list.length === 1 && ip_list[0] === '0.0.0.0') {
-			ip_list = [options.start_range];
+			password = options.password || adapter.config.password;  			// 'admin'
+		adapter.log.warn('password = ' + password);
+		let ip_list;
+		if (adapter.config.ip_list){
+			adapter.log.debug('adapter.config.ip_list: ' + adapter.config.ip_list);
+			ip_list = adapter.config.ip_list;
+		} else {
+			ip_list = generate_range(start_range, end_range);
+			if (ip_list.length === 1 && ip_list[0] === '0.0.0.0') {
+				ip_list = [options.start_range];
+			}
 		}
 		
 		adapter.log.debug('ip_list = ' + JSON.stringify(ip_list));
@@ -794,10 +802,10 @@ async function discovery(options) {
 				let devices = {};
 				adapter.log.debug('ip_list.map start ip_entry: ' + ip_entry);
 				adapter.log.debug('ip_list.map start user: ' + user);
-				adapter.log.debug('ip_list.map start pass: ' + pass);
+				adapter.log.debug('ip_list.map start passowrd: ' + password);
 				
 				for (let port_entry of port_list){
-					let result = await discoveryClassCam(ip_entry, user, pass, port_entry);
+					let result = await discoveryClassCam(ip_entry, user, password, port_entry);
 					adapter.log.debug(`discoveryClassCam: ${ip_entry}:${port_entry} - result: ${JSON.stringify(result)}`);
 					if (Object.keys(result).length > 0) devices = result;
 				}
@@ -936,6 +944,27 @@ function fromLong(ipl) {
         (ipl & 255) );
 };
 
+function startDiscovery(options, callback){
+	adapter.log.info('Discovery starting...');
+	discovery(options)
+	.then(async(devices) => {
+		adapter.log.debug('Discovery devices: ' + JSON.stringify(devices));
+		devices = devices.filter(cam => {
+			return Object.keys(cam).length > 0;
+		});				
+		try {
+			if (devices.length > 0) await processScannedDevices(devices);
+		} catch (err) {
+			adapter.log.debug('Discovery. error: ' + error);
+		}
+		isDiscovery = false;
+		adapter.log.info('Discovery finished');
+		startCameras();
+		adapter.setState('discoveryRunning', { val: false, ack: true });
+		callback && callback(devices);
+	});
+}
+
 function startAdapter(options) {
     // Create the adapter and define its methods
     return adapter = utils.adapter(Object.assign({}, options, {
@@ -943,7 +972,20 @@ function startAdapter(options) {
 
         // The ready callback is called when databases are connected and adapter received configuration.
         // start here!
-        ready: main, // Main method defined below for readability
+        ready: () => {
+			adapter.getForeignObject('system.config', (err, systemConfig) => {
+				if (adapter.config.password && (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+					secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
+					if (!adapter.config.autostartDiscovery) adapter.config.password = tools.decrypt(secret, adapter.config.password);
+				}
+				if ((/[\x00-\x08\x0E-\x1F\x80-\xFF]/.test(adapter.config.password))&&(!adapter.config.autostartDiscovery)) {
+					adapter.log.error('Password error: Please re-enter the password in Admin. Stopping');
+				//	return;
+				}
+				
+				main(); // Main method defined below for readability
+			});
+		},
 
         // is called when adapter shuts down - callback has to be called under any circumstances!
         unload: (callback) => {
@@ -995,27 +1037,8 @@ function startAdapter(options) {
 					// e.g. send email or pushover or whatever
 					adapter.log.debug('Received "discovery" event');
 					clearTimeouts();
-					adapter.log.info('Discovery starting...');
-					discovery(obj.message)
-					.then(async(devices) => {
-						adapter.log.debug('Discovery devices: ' + JSON.stringify(devices));
-						devices = devices.filter(cam => {
-							return Object.keys(cam).length > 0;
-						});				
-						try {
-							if (devices.length > 0) await processScannedDevices(devices);
-						} catch (err) {
-							adapter.log.debug('Discovery. error: ' + error);
-						}
-						isDiscovery = false;
-						adapter.log.info('Discovery finished');
-						startCameras();
-						adapter.setState('discoveryRunning', { val: false, ack: true });
-						setTimeout (() => {
-							if (obj.callback){
-								adapter.sendTo(obj.from, obj.command, devices, obj.callback);
-							}
-						}, 4000);
+					startDiscovery(obj.message, result => {
+						if (obj.callback) setTimeout(() => {adapter.sendTo(obj.from, obj.command, result, obj.callback)}, 500);
 					});
 				}
 				if (obj.command === 'getDevices') {
@@ -1027,13 +1050,14 @@ function startAdapter(options) {
 				if (obj.command === 'deleteDevice') {
 					adapter.log.warn('Received "deleteDevice" event (message: ' + JSON.stringify(obj.message) + ')');
 					deleteDevice(obj.message, (err) => {
-						if (obj.callback) adapter.sendTo(obj.from, obj.command, err, obj.callback);
+						if (obj.callback) setTimeout(() => {adapter.sendTo(obj.from, obj.command, err, obj.callback)}, 500);
 					});
 				}
 				if (obj.command === 'getSnapshot') {
 					adapter.log.debug('Received "getSnapshot" event (message: ' + JSON.stringify(obj.message) + ')');
 					getSnapshot(obj.message, (error, img) => {
 						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
+						if (error) adapter.sendTo(obj.from, obj.command, null, obj.callback);
 					});
 				}
 				if (obj.command === 'saveFileSnapshot') {
@@ -1064,7 +1088,24 @@ function main() {
     adapter.subscribeStates('*');
 	
 	adapter.setState('discoveryRunning', { val: false, ack: true });
-	startCameras();
+	
+	if (adapter.config.autostartDiscovery){
+		adapter.log.info('Autostart discovery!');
+		startDiscovery({});
+		
+		adapter.getForeignObject(adapter.namespace, (err, obj) => {
+			adapter.log.warn('err: ' + JSON.stringify(err));
+			adapter.log.warn('obj: ' + JSON.stringify(obj));
+			if (!err && obj){
+				obj.native.autostartDiscovery = false;
+				obj.native.password = tools.encrypt(secret, adapter.config.password);
+				//adapter.setObject(adapter.namespace, obj);	
+			}
+		});
+
+	} else {
+		startCameras();
+	}
 }
 
 // @ts-ignore parent is a valid property on module
