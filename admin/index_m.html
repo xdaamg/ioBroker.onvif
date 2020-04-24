@@ -50,12 +50,12 @@
 		if (!settings) {
 			return;
 		}
-		console.log('settings.password: ' + settings.password);
+		//console.log('settings.password: ' + settings.password);
 		var firstPassword = settings.password;
 		if (settings.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
 			settings.password = decrypt(secret, settings.password);
 		}
-		console.log('settings.password: ' + settings.password);
+		//console.log('settings.password: ' + settings.password);
 		
 		$('.value').each(function () {
 			var $key = $(this);
@@ -77,18 +77,6 @@
 		onChange(false);
 		// reinitialize all the Materialize labels on the page if you are dynamically adding inputs:
 		if (M) M.updateTextFields();
-		
-		/*console.log('autostartDiscovery = ' + autostartDiscovery);
-		if (settings.autostartDiscovery) {
-			settings.password = firstPassword;
-			setTimeout(() => {
-				startDiscovery(settings, result => {
-					console.log('startDiscovery result = ' + result);
-					$('#autostartDiscovery').prop('checked', false);
-					onChange();
-				});
-			}, 1000);
-		}*/
 	}
 	
     // This will be called by the admin adapter when the user presses the save button
@@ -111,13 +99,13 @@
 		callback(obj);
 	}
 
-    function startDiscovery(settings, callback){
+    function startDiscovery(){
         var options = {
-            start_range: settings.start_range || $('#start_range').val(),
-            end_range: settings.end_range || $('#end_range').val(),
-            ports: settings.ports || $('#ports').val(),
-            user: settings.user || $('#user').val(),
-            password: settings.password || $('#password').val()
+            start_range: $('#start_range').val(),
+            end_range: $('#end_range').val(),
+            ports: $('#ports').val(),
+            user: $('#user').val(),
+            password: $('#password').val()
         }
         console.log('options' + options);
 		
@@ -131,7 +119,6 @@
 			$('#discovery').removeClass('pulse disabled');
 			discoveryRunning = false;
 			$('#progressBar').addClass('hide');
-			callback(true);
         });
     }
 	
@@ -369,10 +356,12 @@
 				idCam.img = true;
 				setTimeout(function tick(){
 					sendTo(null, 'getSnapshot', {id: id}, function (msg) {
-						if (msg) {
+						if (msg.img){
 								console.log('Recived id.img = ' + id);
-								$("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg));
-						} else {
+								$("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg.img));
+						}
+						console.log('Recived msg.err = ' + msg.err);
+						if (msg.err === 'not ready'){
 							setTimeout(tick, 2000);
 						}
 					});

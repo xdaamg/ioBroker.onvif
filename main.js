@@ -242,6 +242,10 @@ async function startCameras(){
             devData = dev.native,
             cam;
 			adapter.getState(devData.id + '.subscribeEvents', (err, state) => {
+				if (err) {
+					adapter.log.error('startCameras. ' + devData.id + '.subscribeEvents: ' + err);
+					return;
+				}
 				if ((devData.events === true)&&(state.val)) {
 					timeoutID[devData.id] = 'OK';
 					cam = cameras[dev._id];
@@ -786,7 +790,7 @@ async function discovery(options) {
 			password = options.password || adapter.config.password;  			// 'admin'
 		adapter.log.warn('password = ' + password);
 		let ip_list;
-		if (adapter.config.ip_list){
+		if (adapter.config.autostartDiscovery){
 			adapter.log.debug('adapter.config.ip_list: ' + adapter.config.ip_list);
 			ip_list = adapter.config.ip_list;
 		} else {
@@ -864,40 +868,25 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
     adapter.log.debug('создать devData: ' + JSON.stringify(devData));
 	adapter.log.debug('создать sub_obj: ' + JSON.stringify(sub_obj));
     return new Promise((resolve, reject) => {
-		adapter.setObjectNotExists(dev_id, {
-			type: 'device',
-			common: {name: dev_name},
-			native: devData
-		}, {}, obj => {
-			let devID = dev_id;
-			let subOBJ = sub_obj;
-			adapter.getObject(devID, (err, obj) => {
-				if (err) {
-					adapter.log.error("updateDev. getObject: " + err);
-					reject(err);
-				}
-				if (!err && obj) {
-					// if update
-					adapter.extendObject(devID, {
-						type: 'device',
-						native: devData
-					});
+		adapter.createDevice(dev_id, {}, devData, (err, obj) => {
+			if (err) {
+				adapter.log.error('Cannot write object: ' + err);
+				reject(err);
+			}
 					
-					subOBJ.forEach(item => {
-						let nameTopic = devID + '.message.' + item.nameObj;
-						let value;
-						
-						if (item.nameType === 'boolean') value = false;
-						if (item.nameType === 'string') value = '';
-						if (item.nameType === 'int') value = 0;
-						updateState(nameTopic, item.nameValue, value, {"type": typeof(value), "read": true, "write": false});
-						adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
-					});
-					updateState(dev_id, 'subscribeEvents', devData.subscribeEvents, {"type": "boolean", "read": true, "write": true});
-					adapter.log.debug('updateDev. resolve = OK');
-					resolve("OK");
-				}
+			sub_obj.forEach(item => {
+				let nameTopic = dev_id + '.message.' + item.nameObj;
+				let value;
+				
+				if (item.nameType === 'boolean') value = false;
+				if (item.nameType === 'string') value = '';
+				if (item.nameType === 'int') value = 0;
+				updateState(nameTopic, item.nameValue, value, {"type": typeof(value), "read": true, "write": false});
+				adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
 			});
+			updateState(dev_id, 'subscribeEvents', devData.subscribeEvents, {"type": "boolean", "read": true, "write": true});
+			adapter.log.debug('updateDev. resolve = OK');
+			resolve("OK");
 		});
 	});
 }
@@ -1056,8 +1045,9 @@ function startAdapter(options) {
 				if (obj.command === 'getSnapshot') {
 					adapter.log.debug('Received "getSnapshot" event (message: ' + JSON.stringify(obj.message) + ')');
 					getSnapshot(obj.message, (error, img) => {
-						if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
-						if (error) adapter.sendTo(obj.from, obj.command, null, obj.callback);
+						adapter.sendTo(obj.from, obj.command, {'img': img, 'err': error}, obj.callback);
+						//if (!error) adapter.sendTo(obj.from, obj.command, img, obj.callback);
+						//if ((error)&&(error === 'not ready')) adapter.sendTo(obj.from, obj.command, error, obj.callback);
 					});
 				}
 				if (obj.command === 'saveFileSnapshot') {
@@ -1093,16 +1083,12 @@ function main() {
 		adapter.log.info('Autostart discovery!');
 		startDiscovery({});
 		
-		adapter.getForeignObject(adapter.namespace, (err, obj) => {
-			adapter.log.warn('err: ' + JSON.stringify(err));
-			adapter.log.warn('obj: ' + JSON.stringify(obj));
-			if (!err && obj){
-				obj.native.autostartDiscovery = false;
-				obj.native.password = tools.encrypt(secret, adapter.config.password);
-				//adapter.setObject(adapter.namespace, obj);	
-			}
+		adapter.updateConfig({
+			autostartDiscovery: false,
+			password: tools.encrypt(secret, adapter.config.password)
+		}, result => {
+			adapter.log.warn('err: ' + JSON.stringify(result));
 		});
-
 	} else {
 		startCameras();
 	}

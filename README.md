@@ -110,6 +110,10 @@ To disconnect the subscription to messages and alarms from the camera, you need 
 
 ## Changelog
 
+### 0.3.0 (2020-04-24)
+* (haba1234) Added support for the Discovery adapter
+* (haba1234) Added password encryption
+
 ### 0.2.0 (2020-04-21)
 * (haba1234) Added camera settings
 * (haba1234) Changes in the structure of objects (ATTENTION! After updating, delete cameras and add again)

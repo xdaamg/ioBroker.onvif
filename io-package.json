@@ -3,6 +3,18 @@
         "name": "onvif",
         "version": "0.3.0",
         "news": {
+			"0.3.0": {
+				"en": "Added support for the Discovery adapter",
+				"de": "Unterstützung für den Discovery-Adapter hinzugefügt",
+				"ru": "Добавлена поддержка адаптера Discovery",
+				"pt": "Suporte adicionado para o adaptador Discovery",
+				"nl": "Ondersteuning toegevoegd voor de Discovery-adapter",
+				"fr": "Prise en charge supplémentaire de l'adaptateur Discovery",
+				"it": "Aggiunto supporto per l'adattatore Discovery",
+				"es": "Soporte agregado para el adaptador Discovery",
+				"pl": "Dodano obsługę adaptera Discovery",
+				"zh-cn": "添加了对发现适配器的支持"
+			},
 			"0.2.0": {
 				"en": "Added camera settings. Bug fixes.",
 				"de": "Kameraeinstellungen hinzugefügt. Fehlerbehebung.",
