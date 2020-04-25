@@ -85,7 +85,7 @@ function getSnapshot(message, callback){
 	let id = message.id,
         objId = adapter.namespace+'.' + id;
     let cam = cameras[objId];
-	
+ 
 	adapter.log.debug('getSnapshot. message.id: ' + JSON.stringify(objId));
 	adapter.log.debug('getSnapshot. cam: ' + JSON.stringify(cam));
     if (cam) {
@@ -110,9 +110,15 @@ function getSnapshot(message, callback){
 
 function saveFileSnapshot(message, callback){
     let id = message.id,
-        objId = adapter.namespace+'.' + id;
+		objId = '';
+		
+	if (id.indexOf(adapter.namespace) >= 0) objId = id;
+		else objId = adapter.namespace+'.' + id;
+	
     let cam = cameras[objId];
 	
+	adapter.log.debug('saveFileSnapshot. message.id: ' + JSON.stringify(objId));
+	adapter.log.debug('saveFileSnapshot. cam: ' + JSON.stringify(cam));
     if (cam) {
         // get snapshot
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
@@ -128,7 +134,7 @@ function saveFileSnapshot(message, callback){
 			}
         });
     } else {
-		adapter.log.warn('Event: getSnapshot. The adapter is not ready. Repeat after a few seconds.');
+		adapter.log.warn('Event: saveFileSnapshot. The adapter is not ready. Repeat after a few seconds or invalid camera ID set.');
 	}
 }
 
