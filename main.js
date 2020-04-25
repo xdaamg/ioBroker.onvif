@@ -747,7 +747,8 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 				}
 				if (got_replay_stream) {
 					adapter.log.debug('First Replay Stream: = ' + got_replay_stream.uri);
-				}
+				} else got_replay_stream = '';
+				
 				adapter.log.debug('capabilities: ' + JSON.stringify(cam_obj.capabilities));
 				adapter.log.info('------------------------------');
 				devices = {
