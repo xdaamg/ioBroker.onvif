@@ -266,16 +266,16 @@ async function startCameras(){
 								updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
 								if (typeof timeoutID[devData.id] !== 'undefined'){
 									timeoutID[devData.id] = setTimeout(function tick(){
-										cam.pullMessages({timeout: 10000, messageLimit: 1}, (err, events) => {
+										cam.pullMessages({timeout: 10000, messageLimit: 10}, (err, events) => {
 											if (typeof timeoutID[devData.id] !== 'undefined'){
 												if (err) {
-													adapter.log.debug(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
+													adapter.log.warn(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
 					
-													timeoutID[devData.id] = setTimeout(tick, 1000);
+													timeoutID[devData.id] = setTimeout(tick, 10000);
 												} else {
 													adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
-													camEvents(devData.id, events.notificationMessage);											
-													timeoutID[devData.id] = setTimeout(tick, 1000);
+													if (events.notificationMessage) camEvents(devData.id, events.notificationMessage);											
+													timeoutID[devData.id] = setTimeout(tick, 10000);
 												}
 											}
 										});
@@ -309,7 +309,8 @@ function camEvents(devId, camMessage) {
 	// OR - Message/Message/Data/SimpleItem/$/name   (single item)
 	//    - Message/Message/Data/SimpleItem/[index]/$/value   (array of items)
 	// OR - Message/Message/Data/SimpleItem/$/value   (single item)
-	adapter.log.debug(`camEvents (${devId}): camMessage = ${JSON.stringify(camMessage)}`);
+	//adapter.log.debug(`camEvents (${devId}): camMessage = ${JSON.stringify(camMessage)}`);
+
 	let eventTopic = camMessage.topic._
 	eventTopic = stripNamespaces(eventTopic);
 
@@ -330,7 +331,7 @@ function camEvents(devId, camMessage) {
 		if (Array.isArray(camMessage.message.message.source.simpleItem)) {
 			sourceName = camMessage.message.message.source.simpleItem[0].$.Name;
 			sourceValue = camMessage.message.message.source.simpleItem[0].$.Value;
-			adapter.log.debug("WARNING: Only processing first Event Source item");
+			//adapter.log.debug("WARNING: Only processing first Event Source item");
 		} else {
 			sourceName = camMessage.message.message.source.simpleItem.$.Name;
 			sourceValue = camMessage.message.message.source.simpleItem.$.Value;
@@ -338,7 +339,7 @@ function camEvents(devId, camMessage) {
 	} else {
 		sourceName = null;
 		sourceValue = null;
-		adapter.log.debug("WARNING: Source does not contain a simpleItem");
+		//adapter.log.debug("WARNING: Source does not contain a simpleItem");
 	}
 	
 	//KEY
@@ -360,12 +361,12 @@ function camEvents(devId, camMessage) {
 			processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
 		}
 	} else if (camMessage.message.message.data && camMessage.message.message.data.elementItem) {
-		adapter.log.debug("WARNING: Data contain an elementItem");
+		//adapter.log.debug("WARNING: Data contain an elementItem");
 		let dataName = 'elementItem';
 		let dataValue = JSON.stringify(camMessage.message.message.data.elementItem);
 		processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
 	} else {
-		adapter.log.debug("WARNING: Data does not contain a simpleItem or elementItem")
+		//adapter.log.debug("WARNING: Data does not contain a simpleItem or elementItem")
 		let dataName = null;
 		let dataValue = null;
 		processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue);
@@ -712,7 +713,7 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 					callback();
 				});
 			},
-			function(callback) {
+			/*function(callback) {
 				// Get Recording URI for the first recording on the NVR
 				if (got_recordings) {
 					adapter.log.info(cam_obj.hostname + ' got_recordings='+JSON.stringify(got_recordings));
@@ -730,7 +731,7 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 				} else {
 					callback();
 				}
-			},
+			},*/
 			function(callback) {
 				adapter.log.info('------------------------------');
 				adapter.log.info('Host: ' + ip_entry + ' Port: ' + port_entry);
