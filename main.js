@@ -246,7 +246,9 @@ async function startCameras(){
 		} else for (let item of devices) {
 			let dev = item,
             devData = dev.native,
-            cam;
+            cam, 
+			countErr = 0;
+			
 			adapter.getState(devData.id + '.subscribeEvents', (err, state) => {
 				if (err) {
 					adapter.log.error('startCameras. ' + devData.id + '.subscribeEvents: ' + err);
@@ -269,12 +271,28 @@ async function startCameras(){
 										cam.pullMessages({timeout: 10000, messageLimit: 10}, (err, events) => {
 											if (typeof timeoutID[devData.id] !== 'undefined'){
 												if (err) {
-													adapter.log.warn(`startCameras (${devData.id}) pullMessages: ERROR - ${err}. Resubscribe to events`);
-					
-													timeoutID[devData.id] = setTimeout(tick, 10000);
+													countErr++;
+													adapter.log.warn(`startCameras (${devData.id}) pullMessages: ERROR - ${err} (count error = ${countErr}). Resubscribe to events`);
+													if (countErr > 3){
+														adapter.log.error(`Camera/NVT (${devData.id}) did not answer several times in a row. Disconnected!`);
+														clearTimeout(timeoutID[devData.id]);
+														updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
+													} else {
+														timeoutID[devData.id] = setTimeout(tick, 10000);
+													}
 												} else {
-													adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
-													if (events.notificationMessage) camEvents(devData.id, events.notificationMessage);											
+													countErr = 0;
+													if (events.notificationMessage) {
+														adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
+														
+														if (Array.isArray(events.notificationMessage)){
+															events.notificationMessage.forEach(topic => {
+																camEvents(devData.id, topic);
+															});
+														} else {
+															camEvents(devData.id, events.notificationMessage);
+														}
+													}
 													timeoutID[devData.id] = setTimeout(tick, 10000);
 												}
 											}
@@ -344,7 +362,7 @@ function camEvents(devId, camMessage) {
 	
 	//KEY
 	if (camMessage.message.message.key) {
-		adapter.log.debug('NOTE: Event has a Key');
+		//adapter.log.debug('NOTE: Event has a Key');
 	}
 
 	// DATA (Name:Value)
@@ -393,7 +411,7 @@ function stripNamespaces(topic) {
 }
 
 function processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, sourceValue, dataName, dataValue) {
-	let output = `EVENT (${devId}): `;
+	let output = `${devId}: `;
 	output += `${eventTime.toJSON()} ${eventTopic}`
 	if (typeof(eventProperty) !== "undefined") {
 		output += ` PROP:${eventProperty}`;
@@ -406,7 +424,11 @@ function processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, s
 	}
 	
 	let nameObj = 'message.' + eventTopic.toLowerCase() + '.' + dataName;
-	updateState(devId, nameObj, dataValue, {"type": typeof(dataValue), "read": true, "write": false});
+	let data = {};
+	data['Value'] = dataValue;
+	data['UtcTime'] = eventTime.toJSON();
+
+	updateState(devId, nameObj, data, {"type": 'object', "read": true, "write": false});
 	adapter.log.debug(output);
 }
 
@@ -417,14 +439,16 @@ function updateStateWithTimeout(dev_id, name, value, common, timeout, outValue) 
 
 function updateState(devId, name, value, common) {
     let id = devId + '.' + name;
-    adapter.setObjectNotExists(id, {type: 'state', common: common}, (err, data) => {
-        //adapter.log.info('err=' + JSON.stringify(err));
-        //adapter.log.info('data=' + JSON.stringify(data));
+	common.name = id;
+    adapter.setObjectNotExists(id, {type: 'state', common: common}, (err, obj) => {
+        if (err) adapter.log.error(`Cannot write object ID: ${id} - ERROR: ${err}`);
         //adapter.log.info('id=' + JSON.stringify(id));
         //adapter.log.info('value=' + JSON.stringify(value));
         //adapter.log.info('common=' + JSON.stringify(common));
-        if (value !== undefined) {
-            adapter.setState(id, value, true);
+        if (value !== undefined){
+            adapter.setState(id, {val: value, ack: true}, (err, id) => {
+				if (err) adapter.log.error('Cannot set value for "' + id + '": ' + err);
+			});
         }
     });
 }
@@ -706,14 +730,14 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 					callback();
 				});
 			},
-			function(callback) {
+			/*function(callback) {
 				cam_obj.getRecordings((err, recordings, xml) => {
 					if (err) adapter.log.error(cam_obj.hostname + " getRecordings: " + err);
 					if (!err) got_recordings = recordings;
 					callback();
 				});
 			},
-			/*function(callback) {
+			function(callback) {
 				// Get Recording URI for the first recording on the NVR
 				if (got_recordings) {
 					adapter.log.info(cam_obj.hostname + ' got_recordings='+JSON.stringify(got_recordings));
@@ -746,9 +770,9 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 				if (got_live_stream_multicast) {
 					adapter.log.debug('First Live Multicast Stream: = ' + got_live_stream_multicast.uri);
 				}
-				if (got_replay_stream) {
-					adapter.log.debug('First Replay Stream: = ' + got_replay_stream.uri);
-				} else got_replay_stream = '';
+				//if (got_replay_stream) {
+				//	adapter.log.debug('First Replay Stream: = ' + got_replay_stream.uri);
+				//} else got_replay_stream = '';
 				
 				adapter.log.debug('capabilities: ' + JSON.stringify(cam_obj.capabilities));
 				adapter.log.info('------------------------------');
@@ -767,7 +791,7 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 					live_stream_tcp: got_live_stream_tcp,
 					live_stream_udp: got_live_stream_udp,
 					live_stream_multicast: got_live_stream_multicast,
-					replay_stream: got_replay_stream,
+					//replay_stream: got_replay_stream,
 					sub_obj: sub_obj
 				};
 				callback();
@@ -889,7 +913,11 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 				if (item.nameType === 'boolean') value = false;
 				if (item.nameType === 'string') value = '';
 				if (item.nameType === 'int') value = 0;
-				updateState(nameTopic, item.nameValue, value, {"type": typeof(value), "read": true, "write": false});
+				let data = {};
+				data['Value'] = value;
+				data['UtcTime'] = '';
+				
+				updateState(nameTopic, item.nameValue, data, {"type": 'object', "read": true, "write": false});
 				adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
 			});
 			updateState(dev_id, 'subscribeEvents', devData.subscribeEvents, {"type": "boolean", "read": true, "write": true});
@@ -1015,7 +1043,7 @@ function startAdapter(options) {
         stateChange: (id, state) => {
             if (state) {
                 // The state was changed
-                adapter.log.debug(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
+                adapter.log.debug(`state ${id} changed: ${JSON.stringify(state.val)} (ack = ${state.ack})`);
 				if (!state.ack){
 					const devId = adapter.namespace + '.' + id.split('.')[2]; // iobroker device id
 					adapter.log.debug("devId = " + devId);
