@@ -265,6 +265,7 @@ async function startCameras(){
             cam, 
 			countErr = 0;
 			
+			updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
 			adapter.getState(devData.id + '.subscribeEvents', (err, state) => {
 				if (err) {
 					adapter.log.error('startCameras. ' + devData.id + '.subscribeEvents: ' + err);
@@ -943,6 +944,7 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 				adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
 			});
 			updateState(dev_id, 'subscribeEvents', devData.subscribeEvents, {"type": "boolean", "read": true, "write": true});
+			updateState(dev_id, 'connection', false, {"type": "boolean", "read": true, "write": false});
 			adapter.log.debug('updateDev. resolve = OK');
 			resolve("OK");
 		});
