@@ -3,6 +3,18 @@
         "name": "onvif",
         "version": "0.4.1",
         "news": {
+			"0.4.1": {
+				"en": "States as an Object. Minor improvements.",
+				"de": "Staaten als Objekt. Kleinere Verbesserungen.",
+				"ru": "Состояния как объект. Незначительные улучшения.",
+				"pt": "Estados como um objeto. Pequenas melhorias.",
+				"nl": "Staten als een object. Kleine verbeteringen.",
+				"fr": "États comme un objet. Améliorations mineures.",
+				"it": "Stati come oggetto. Piccoli miglioramenti.",
+				"es": "Estados como un objeto. Pequeñas mejoras.",
+				"pl": "Stany jako obiekt. Niewielkie zmiany.",
+				"zh-cn": "状态为对象。小改进。"
+			},
 			"0.3.0": {
 				"en": "Added support for the Discovery adapter",
 				"de": "Unterstützung für den Discovery-Adapter hinzugefügt",
