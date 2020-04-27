@@ -178,11 +178,19 @@ function setChangeCam(msg, callback){
         objId = adapter.namespace+'.' + id;
 	adapter.log.debug("setChangeCam. objId: " + objId);	
 	
+	let password = msg.password;
+	/*if (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE')) {
+		secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
+		password = tools.encrypt(secret, msg.password);
+	} else {
+		password = msg.password;
+	}*/
+	
 	adapter.extendObject(objId, {
 		common: {name: msg.name},
 		native: {
 			user: msg.user,
-			password: tools.encrypt(secret, msg.password),
+			password: password,
 			subscribeEvents: msg.events
 		}
 	}, obj => {
@@ -205,12 +213,20 @@ async function getDevices(){
 const classCam = item => new Promise((resolve) => {
 	adapter.log.debug('classCam: item = ' + JSON.stringify(item));
 	let devData = item.native,
-		cam;
+		cam, 
+		password = devData.password;
+		
+	/*if (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE')) {
+		secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
+		password = tools.decrypt(secret, devData.password);
+	} else {
+		password = devData.password;
+	}*/
 	cam = new MyCam({
 		hostname: devData.ip,
 		port: devData.port,
 		username: devData.user,
-		password: tools.decrypt(secret, devData.password),
+		password: password,
 		timeout : 15000,
 		preserveAddress: true
 	},(err) => {
@@ -776,13 +792,19 @@ const discoveryClassCam = (ip_entry, user, password, port_entry) => new Promise(
 				
 				adapter.log.debug('capabilities: ' + JSON.stringify(cam_obj.capabilities));
 				adapter.log.info('------------------------------');
+				
+				/*if (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE')) {
+					secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
+					password = tools.encrypt(secret, password);
+				}*/
+				
 				devices = {
 					id: getId(ip_entry+':'+port_entry),
 					name: ip_entry+':'+port_entry,
 					ip: ip_entry,
 					port: port_entry,
 					user: user,
-					password: tools.encrypt(secret, password),
+					password: password,
 					ip: ip_entry,
 					cam_date: got_date,
 					info: got_info,
@@ -999,14 +1021,14 @@ function startAdapter(options) {
         // start here!
         ready: () => {
 			adapter.getForeignObject('system.config', (err, systemConfig) => {
-				if (adapter.config.password && (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+				/*if (adapter.config.password && (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
 					secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
 					if (!adapter.config.autostartDiscovery) adapter.config.password = tools.decrypt(secret, adapter.config.password);
 				}
 				if ((/[\x00-\x08\x0E-\x1F\x80-\xFF]/.test(adapter.config.password))&&(!adapter.config.autostartDiscovery)) {
 					adapter.log.error('Password error: Please re-enter the password in Admin. Stopping');
 				//	return;
-				}
+				}*/
 				
 				main(); // Main method defined below for readability
 			});
@@ -1119,9 +1141,17 @@ function main() {
 		adapter.log.info('Autostart discovery!');
 		startDiscovery({});
 		
+		let password = adapter.config.password;
+		/*if (!adapter.supportsFeature || !adapter.supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE')) {
+			secret = (systemConfig && systemConfig.native && systemConfig.native.secret) || 'Zgfr56gFe87jJOM';
+			password = tools.encrypt(secret, adapter.config.password);
+		} else {
+			password = adapter.config.password;
+		}*/
+		
 		adapter.updateConfig({
 			autostartDiscovery: false,
-			password: tools.encrypt(secret, adapter.config.password)
+			password: password
 		}, result => {
 			adapter.log.warn('err: ' + JSON.stringify(result));
 		});

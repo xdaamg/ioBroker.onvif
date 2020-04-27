@@ -52,9 +52,9 @@
 		}
 		//console.log('settings.password: ' + settings.password);
 		var firstPassword = settings.password;
-		if (settings.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
-			settings.password = decrypt(secret, settings.password);
-		}
+		//if (settings.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+		//	settings.password = decrypt(secret, settings.password);
+		//}
 		//console.log('settings.password: ' + settings.password);
 		
 		$('.value').each(function () {
@@ -92,9 +92,9 @@
 			}
 		});
 		
-		if (obj.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
-			obj.password = encrypt(secret, obj.password);
-		}
+		//if (obj.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+		//	obj.password = encrypt(secret, obj.password);
+		//}
 		
 		callback(obj);
 	}
@@ -245,7 +245,7 @@
 				$('#serialNumber').text('serialNumber: ' + obj.native.info.serialNumber);
 				$('#hardwareId').text('hardwareId: ' + obj.native.info.hardwareId);
 				$('#userDevice').val(obj.native.user);
-				$('#passwordDevice').val(decrypt(secret, obj.native.password));
+				$('#passwordDevice').val(obj.native.password); //decrypt(secret, obj.native.password)
 				if ((obj.native.subscribeEvents === true) || (obj.native.subscribeEvents === 'true')){
 					$('#subscribeEvents').prop('checked', true);
 				} else {
