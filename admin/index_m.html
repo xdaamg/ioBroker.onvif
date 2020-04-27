@@ -244,6 +244,9 @@
 				$('#firmwareVersion').text('firmwareVersion: ' + obj.native.info.firmwareVersion);
 				$('#serialNumber').text('serialNumber: ' + obj.native.info.serialNumber);
 				$('#hardwareId').text('hardwareId: ' + obj.native.info.hardwareId);
+				$('#IPInfo').text('IP address: ' + obj.native.ip);
+				$('#PortInfo').text('Port: ' + obj.native.port);
+				
 				$('#userDevice').val(obj.native.user);
 				$('#passwordDevice').val(obj.native.password); //decrypt(secret, obj.native.password)
 				if ((obj.native.subscribeEvents === true) || (obj.native.subscribeEvents === 'true')){
@@ -448,6 +451,8 @@
 						<div class="col s12" id="firmwareVersion">firmwareVersion</div>
 						<div class="col s12" id="serialNumber">serialNumber</div>
 						<div class="col s12" id="hardwareId">hardwareId</div>
+						<div class="col s12" id="IPInfo">IP</div>
+						<div class="col s12" id="PortInfo">Port</div>
                     </div>
                     <div class="row">
 						<div class="input-field col s12 m6 l4 xl3">
