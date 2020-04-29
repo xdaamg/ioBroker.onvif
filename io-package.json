@@ -139,7 +139,7 @@
         "enabled": true,
         "extIcon": "https://raw.githubusercontent.com/Haba1234/ioBroker.onvif/master/admin/onvif.png",
         "readme": "https://github.com/Haba1234/ioBroker.onvif/blob/master/README.md",
-        "loglevel": "info",
+        "loglevel": "debug",
 		"mode": "daemon",
         "type": "infrastructure",
 		"compact": true,
