@@ -1,8 +1,20 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.4.1",
+        "version": "0.4.2",
         "news": {
+			"0.4.2": {
+				"en": "Updated admin panel",
+				"de": "Admin-Panel aktualisiert",
+				"ru": "Обновлена админка",
+				"pt": "Painel de administração atualizado",
+				"nl": "Bijgewerkt admin paneel",
+				"fr": "Panneau d'administration mis à jour",
+				"it": "Pannello di amministrazione aggiornato",
+				"es": "Panel de administración actualizado",
+				"pl": "Zaktualizowany panel administracyjny",
+				"zh-cn": "更新的管理面板"
+			},
 			"0.4.1": {
 				"en": "States as an Object. Minor improvements.",
 				"de": "Staaten als Objekt. Kleinere Verbesserungen.",
