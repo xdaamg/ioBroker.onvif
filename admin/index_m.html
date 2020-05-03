@@ -52,9 +52,9 @@
 		}
 		//console.log('settings.password: ' + settings.password);
 		var firstPassword = settings.password;
-		//if (settings.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
-		//	settings.password = decrypt(secret, settings.password);
-		//}
+		if (settings.password && (typeof supportsFeature !== 'function' || !supportsFeature('ADAPTER_AUTO_DECRYPT_NATIVE'))) {
+			//settings.password = decrypt(secret, settings.password);
+		}
 		//console.log('settings.password: ' + settings.password);
 		
 		$('.value').each(function () {
@@ -169,28 +169,48 @@
                 getDevices();
             }
         });
-		
-		//console.log('#autostartDiscovery = ' + $('#autostartDiscovery').val());
-		//if (autostartDiscovery
     });
 
     function getCard(dev) {
         var title = dev.common.name,
-            id = dev.native.id, 
-            info = dev.native.info.model,
-			button1 = '<a name="settings" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">settings</i></a>',
-            button2 = '<a name="delete" class="btn-floating waves-effect waves-light right hoverable black"><i class="material-icons tiny">delete</i></a>',
-            card = '<div id="' + id + '" class="device col s12 m6 l4 xl3">'+
-                '<div class="card hoverable">'+
-                '<div class="card-content">'+
-                '<span class="card-title">'+title+'</span>'+
-                '<div class="card-image"><img id="img' + id + '" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="/></div>'+
-                info+
-				button2+
-                button1+
-                '</div>'+
-                '</div>'+
-                '</div>';
+            id = dev.native.id,
+			ip = dev.native.ip,
+			port = dev.native.port,
+			manufacturer = dev.native.info.manufacturer,
+            model = dev.native.info.model,
+			firmwareVersion = dev.native.info.firmwareVersion,
+			serialNumber = dev.native.info.serialNumber,
+			hardwareId = dev.native.info.hardwareId,
+			button1 = '<a name="settings" class="btn-floating waves-effect waves-light right hoverable black btn-small"><i class="material-icons tiny">settings</i></a>',
+            button2 = '<a name="delete" class="btn-floating waves-effect waves-light right hoverable black btn-small"><i class="material-icons tiny">delete</i></a>',
+			button3 = '<a name="updateSnapshot" class="btn-floating waves-effect waves-light right hoverable black btn-small"><i class="material-icons tiny">photo_camera</i></a>',
+			card = '<div id="' + id + '" class="device col s12 m6 l4 xl3">'+
+                '<div class="card small hoverable">'+
+				'<div class="card-content">'+
+					'<p class="card-title hide">'+title+'</p>'+
+					'<span class="card-title activator grey-text text-darken-4">'+title+'<i class="material-icons right">more_vert</i></span>'+
+					'<div class="card-image waves-effect waves-block waves-light"><img class="activator" id="img' + id + '" src="onvif_logo.png"/></div>'+
+					'<div id="' + id + '" class="progress hide"><div class="indeterminate"></div></div>'+
+					'<div class="card-action">'+
+						button2+
+						button1+
+						button3+
+					'</div>'+
+				'</div>'+
+				'<div class="card-reveal">'+
+					'<span class="card-title grey-text text-darken-4">'+title+'<i class="material-icons right">close</i></span>'+
+					'<ul class="collection">'+
+						'<li class="collection-item">IP: <span class="truncate right">'+ip+'</span></li>'+
+						'<li class="collection-item">Port: <span class="truncate right">'+port+'</span></li>'+
+						'<li class="collection-item">Manufacturer: <span class="truncate right">'+manufacturer+'</span></li>'+
+						'<li class="collection-item">model: <span class="truncate right">'+model+'</span></li>'+
+						'<li class="collection-item">Firmware Version: <span class="truncate right">'+firmwareVersion+'</span></li>'+
+						//'<li class="collection-item">serialNumber: <span class="truncate right">'+serialNumber+'</span></li>'+
+						//'<li class="collection-item">hardwareId: <span class="truncate right">'+hardwareId+'</span></li>'+
+					'</ul>'+
+				'</div>'+
+				'</div>'+
+            '</div>';
 			Snapshot.push({
 				id: id,
 				img: false
@@ -213,7 +233,7 @@
         $("a.btn-floating[name='delete']").click(function() {
             var dev_block = $(this).parents("div.device"),
                 id = dev_block.attr("id"),
-                name = dev_block.find(".card-title").text();
+                name = dev_block.find("p.card-title").text();
             deleteConfirmation(id, name);
         });
         $("a.btn-floating[name='settings']").click(function(e) {
@@ -222,15 +242,19 @@
                 name = dev_block.find(".card-title").text();
             settingsCamera(dev_block, id, name);
         });
-//        $("a.btn[name='done']").click(function(e) {
-//            var dev_block = $(this).parents("div.device"),
-//                id = dev_block.attr("id"),
-//                name = dev_block.find("input").val();
-//            closeReval(e, id, name);
-//        });
-//        $("a.btn-flat[name='close']").click(function(e) {
-//            closeReval(e);
-//        });
+		$("a.btn-floating[name='updateSnapshot']").click(function(e) {
+            var dev_block = $(this).parents("div.device"),
+                id = dev_block.attr("id");
+			Snapshot.forEach(idCam => {
+				console.log('Button. idCam = ' + JSON.stringify(idCam));
+				if (idCam.id === id){
+					idCam.img = false;
+					$('#'+id+' div.progress').removeClass('hide');
+					getSnapshot(id);
+				}
+			});
+        });
+
     }
 	
 	function settingsCamera(dev_block, id, name) {
@@ -239,16 +263,9 @@
 				//console.log('Recived id: ' + id + ' - msg = ' + JSON.stringify(obj));
 				$('#idCam').text(id);
 				$('#nameCard').val(obj.common.name);
-				$('#manufacturer').text('manufacturer: ' + obj.native.info.manufacturer);
-				$('#model').text('model: ' + obj.native.info.model);
-				$('#firmwareVersion').text('firmwareVersion: ' + obj.native.info.firmwareVersion);
-				$('#serialNumber').text('serialNumber: ' + obj.native.info.serialNumber);
-				$('#hardwareId').text('hardwareId: ' + obj.native.info.hardwareId);
-				$('#IPInfo').text('IP address: ' + obj.native.ip);
-				$('#PortInfo').text('Port: ' + obj.native.port);
-				
 				$('#userDevice').val(obj.native.user);
-				$('#passwordDevice').val(obj.native.password); //decrypt(secret, obj.native.password)
+				//$('#passwordDevice').val(decrypt(secret, obj.native.password));
+				$('#passwordDevice').val(obj.native.password);
 				if ((obj.native.subscribeEvents === true) || (obj.native.subscribeEvents === 'true')){
 					$('#subscribeEvents').prop('checked', true);
 				} else {
@@ -367,6 +384,7 @@
 						if (msg.err === 'not ready'){
 							setTimeout(tick, 2000);
 						}
+						$('#'+id+' div.progress').addClass('hide');
 					});
 				}, 1000);
 			}
@@ -375,26 +393,24 @@
 </script>
 </head>
 <body>
-    <!-- you have to put your config page in a div with id adapter-container -->
+    <!-- you have to put your config page in a div with id adapter-container right-align center-align -->
     <div class="m adapter-container">
         <div class="row">
-            <!-- Forms are the standard way to receive user inputted data.
-         Learn more http://materializecss.com/forms.html-->
-            <div class="row valign-wrapper">
-                <div class="col s6">
-                    <img src="onvif_logo.png">
-                </div>
-                <div class="col s6 right-align">
-                    <!--<a class="btn-floating waves-effect waves-light btn-large green tooltipped center-align hoverable modal-trigger" href="#modal_add"><i class="material-icons large">add</i></a>-->
-                    <a class="btn-floating waves-effect waves-light btn-large blue tooltipped center-align hoverable modal-trigger" href="#modal_discovery"><i class="material-icons large">youtube_searched_for</i></a>
-                </div>
-            </div>
+			<div class="col s6">
+				<img src="onvif.png" class="logo">
+			</div>
+        </div>
+		<div class="row">
+			<div class="col s1 offset-s11">
+				<a class="btn-floating waves-effect waves-light btn-medium blue tooltipped hoverable modal-trigger right" href="#modal_discovery"><i class="material-icons medium right">youtube_searched_for</i></a>
+			</div>
+		</div>
+		<div class="row">
 			<div id="progressBar" class="progress hide">
 				<div class="indeterminate"></div>
 			</div>
-        </div>
-        <div id="devices" class="row">
-        </div>
+			<div id="devices" class="row"></div>
+		</div>
     </div>
     <div class="materialize-dialogs m">
         <div id="modal_discovery" class="modal">
@@ -446,13 +462,6 @@
                             <label class="translate" for="Camera name">Camera name</label>
                         </div>
 						<div class="col s12 hide" id="idCam">idCam</div>
-						<div class="col s12" id="manufacturer">manufacturer</div>
-						<div class="col s12" id="model">model</div>
-						<div class="col s12" id="firmwareVersion">firmwareVersion</div>
-						<div class="col s12" id="serialNumber">serialNumber</div>
-						<div class="col s12" id="hardwareId">hardwareId</div>
-						<div class="col s12" id="IPInfo">IP</div>
-						<div class="col s12" id="PortInfo">Port</div>
                     </div>
                     <div class="row">
 						<div class="input-field col s12 m6 l4 xl3">
