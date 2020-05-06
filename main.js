@@ -92,19 +92,22 @@ function getSnapshot(message, callback){
     if (cam) {
         // get snapshot
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
-			adapter.log.error("getSnapshot. err: " + JSON.stringify(err));
-			adapter.log.error("getSnapshot. stream: " + JSON.stringify(stream));
+			adapter.log.debug("getSnapshot. err: " + JSON.stringify(err));
+			adapter.log.debug("getSnapshot. stream: " + JSON.stringify(stream));
 			if (err) {
 				adapter.log.error("getSnapshot. Error: " + err);
 				callback(err, null);
 			}
-			if (!err){
+			if (stream){
 				adapter.log.debug('getSnapshotUri:stream.uri ' + JSON.stringify(stream.uri));
 				adapter.log.debug('getSnapshotUri:cam.username ' + JSON.stringify(cam.username));
 				adapter.log.debug('getSnapshotUri:cam.password ' + JSON.stringify(cam.password));
 				httpGet(stream.uri, cam.username, cam.password, (img) => {
 					callback(null, img);
 				});
+			} else {
+				adapter.log.error("getSnapshot. stream = NULL");
+				callback(err, null);
 			}
         });
     } else {
