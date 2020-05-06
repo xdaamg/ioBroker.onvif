@@ -62,6 +62,7 @@ function httpGet(url, username, password, callback){
 	
 	const req = http
 	.get(url, options, (res) => {
+		adapter.log.debug('httpGet. res: ' + JSON.stringify(res));
 		let data = [];
 		res.on('data', (chunk) => {
 			data.push(chunk);
@@ -91,12 +92,16 @@ function getSnapshot(message, callback){
     if (cam) {
         // get snapshot
         cam.getSnapshotUri({protocol:'RTSP'}, function(err, stream) {
+			adapter.log.error("getSnapshot. err: " + JSON.stringify(err));
+			adapter.log.error("getSnapshot. stream: " + JSON.stringify(stream));
 			if (err) {
 				adapter.log.error("getSnapshot. Error: " + err);
 				callback(err, null);
 			}
 			if (!err){
-				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
+				adapter.log.debug('getSnapshotUri:stream.uri ' + JSON.stringify(stream.uri));
+				adapter.log.debug('getSnapshotUri:cam.username ' + JSON.stringify(cam.username));
+				adapter.log.debug('getSnapshotUri:cam.password ' + JSON.stringify(cam.password));
 				httpGet(stream.uri, cam.username, cam.password, (img) => {
 					callback(null, img);
 				});
