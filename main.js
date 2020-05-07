@@ -15,6 +15,7 @@ const Cam   	= require('onvif').Cam;
 const flow  	= require('nimble');
 const url   	= require('url');
 const fs    	= require('fs');
+const sharp    	= require('sharp');
 const inherits 	= require('util').inherits;
 
 /**
@@ -68,12 +69,22 @@ function httpGet(url, username, password, callback){
 			data.push(chunk);
 		});
 		res.on('end', () => {
-			const img = {
-				mimeType: "image/jpeg",
-				rawImage: Buffer.concat(data)
-			};
-			adapter.log.debug('httpGet: ' + JSON.stringify(img));
-			callback(img);
+			sharp(Buffer.concat(data))
+			.resize({ width: 300 })
+			.toBuffer({ resolveWithObject: true })
+			.then(({ result, info }) => {
+				adapter.log.debug('httpGet:sharp info ' + JSON.stringify(info));
+				adapter.log.debug('httpGet:sharp result ' + JSON.stringify(result));
+				const img = {
+					mimeType: "image/jpeg",
+					rawImage: result
+				};
+				adapter.log.debug('httpGet: ' + JSON.stringify(img));
+				callback(img);
+			})
+			.catch(err => {
+				adapter.log.error('httpGet:sharp ' + JSON.stringify(err));
+			});
 		});
 	})
 	.on('error', (err) => {
