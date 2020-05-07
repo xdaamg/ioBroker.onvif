@@ -171,7 +171,7 @@
         });
     });
 
-    function getCard(dev) {
+    function getCard(dev, img) {
         var title = dev.common.name,
             id = dev.native.id,
 			ip = dev.native.ip,
@@ -189,7 +189,7 @@
 				'<div class="card-content">'+
 					'<p class="card-title hide">'+title+'</p>'+
 					'<span class="card-title activator grey-text text-darken-4">'+title+'<i class="material-icons right">more_vert</i></span>'+
-					'<div class="card-image waves-effect waves-block waves-light"><img class="activator" id="img' + id + '" src="onvif_logo.png"/></div>'+
+					'<div class="card-image waves-effect waves-block waves-light"><img class="activator" id="img' + id + '" src='+ img +'></div>'+
 					'<div id="' + id + '" class="progress hide"><div class="indeterminate"></div></div>'+
 					'<div class="card-action">'+
 						button2+
@@ -211,18 +211,36 @@
 				'</div>'+
 				'</div>'+
             '</div>';
-			Snapshot.push({
-				id: id,
-				img: false
-			});
         return card;
     }
 
     function showDevices(devices) {
         var html = '';
+		var card;
         for (var i=0;i < devices.length; i++) {
-            var d = devices[i];
-            var card = getCard(d);
+			var d = devices[i];
+			var id = d.native.id;
+			var new_id = Snapshot.find(obj => {
+				if (obj.id === id) {
+					return true;
+				} else {
+					return false;
+				}
+			});
+
+			if (new_id === undefined) {
+				Snapshot.push({
+					id: id,
+					img: false,
+					raw: "onvif_logo.png"
+				});
+				console.log(`new_id = undefined`);
+				card = getCard(d, "onvif_logo.png");
+			} else {
+				console.log(`new_id = ${new_id.id} ${new_id.img} raw = ${new_id.raw.length}`);
+				card = getCard(d, new_id.raw);
+			}
+            
             html += card;
         }
         $('#devices').html(html);
@@ -246,7 +264,7 @@
             var dev_block = $(this).parents("div.device"),
                 id = dev_block.attr("id");
 			Snapshot.forEach(idCam => {
-				console.log('Button. idCam = ' + JSON.stringify(idCam));
+				console.log(`Button. idCam = ${idCam.id} ${idCam.img}`);
 				if (idCam.id === id){
 					idCam.img = false;
 					$('#'+id+' div.progress').removeClass('hide');
@@ -305,7 +323,7 @@
                     showMessage(msg.error.code, _('Error'), 'alert');
                 } else {
 					Snapshot.forEach((idCam, index) => {
-						Snapshot.splice(index);
+						if (idCam.id === id) Snapshot.splice(index, 1);
 					});
 					console.log('Delete Snapshot: ' + JSON.stringify(Snapshot));
                     getDevices();
@@ -316,7 +334,7 @@
 
     function getDevices() {
         sendTo(null, 'getDevices', {}, function (msg) {
-            //console.log('getDevices: ' + msg);
+            console.log('getDevices: ' + JSON.stringify(msg));
             if (msg) {
                 if (msg.error) {
                     showMessage(msg.error, _('Error'), 'alert');
@@ -371,16 +389,18 @@
     function getSnapshot(id){
 		console.log('id = ' + id);
 		Snapshot.forEach(idCam => {
-			console.log('idCam = ' + JSON.stringify(idCam));
+			//console.log('idCam = ' + JSON.stringify(idCam));
 			if ((idCam.id === id)&&(!idCam.img)){
 				idCam.img = true;
 				setTimeout(function tick(){
-					sendTo(null, 'getSnapshot', {id: id}, function (msg) {
+					sendTo(null, 'getSnapshot', {id: id, width: 300}, function (msg) {
 						if (msg.img){
 								console.log('Recived id.img = ' + id);
-								$("[id='img"+id+"']").attr('src', arrayBufferDataUri(msg.img));
+								let raw = arrayBufferDataUri(msg.img);
+								$("[id='img"+id+"']").attr('src', raw);
+								idCam.raw = raw;
 						}
-						console.log('Recived msg.err = ' + msg.err);
+						console.log('Recived msg.err = ' + JSON.stringify(msg.err));
 						if (msg.err === 'not ready'){
 							setTimeout(tick, 2000);
 						}

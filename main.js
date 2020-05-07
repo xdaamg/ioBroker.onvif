@@ -56,25 +56,33 @@ override(MyCam, function getSnapshotUri(options, callback){
     });
 });
 
-function httpGet(url, username, password, callback){
+function httpGet(url, username, password, imageWidth, callback){
+	if (typeof imageWidth === 'function') {
+		callback = imageWidth;
+		imageWidth = null;
+	}
+	
 	const options = {
 		auth: username + ":" + password
 	};
 	
 	const req = http
 	.get(url, options, (res) => {
-		adapter.log.debug('httpGet. res: ' + JSON.stringify(res));
 		let data = [];
 		res.on('data', (chunk) => {
 			data.push(chunk);
 		});
 		res.on('end', () => {
-			sharp(Buffer.concat(data))
-			.resize({ width: 300 })
-			.toBuffer({ resolveWithObject: true })
-			.then(({ result, info }) => {
-				adapter.log.debug('httpGet:sharp info ' + JSON.stringify(info));
-				adapter.log.debug('httpGet:sharp result ' + JSON.stringify(result));
+			const image = sharp(Buffer.concat(data));
+			image
+			.metadata()
+			.then(metadata => {
+				adapter.log.debug('httpGet. Image metadata: ' + JSON.stringify(metadata));
+				return image
+					.resize({ width: imageWidth || metadata.width })
+					.toBuffer();
+			})
+			.then(result => {
 				const img = {
 					mimeType: "image/jpeg",
 					rawImage: result
@@ -83,12 +91,14 @@ function httpGet(url, username, password, callback){
 				callback(img);
 			})
 			.catch(err => {
-				adapter.log.error('httpGet:sharp ' + JSON.stringify(err));
+				adapter.log.error('httpGet. sharp ' + JSON.stringify(err));
+				callback(null);
 			});
 		});
 	})
 	.on('error', (err) => {
-	  adapter.log.error('httpGet. Error: ' + JSON.stringify(err));
+		adapter.log.error('httpGet. Error: ' + JSON.stringify(err));
+		callback(null);
 	});
 	req.end();
 }
@@ -111,10 +121,12 @@ function getSnapshot(message, callback){
 			}
 			if (stream){
 				adapter.log.debug('getSnapshotUri:stream.uri ' + JSON.stringify(stream.uri));
-				adapter.log.debug('getSnapshotUri:cam.username ' + JSON.stringify(cam.username));
-				adapter.log.debug('getSnapshotUri:cam.password ' + JSON.stringify(cam.password));
-				httpGet(stream.uri, cam.username, cam.password, (img) => {
-					callback(null, img);
+				httpGet(stream.uri, cam.username, cam.password, (message.width || null), (img) => {
+					if (img) {
+						callback(null, img);
+					} else {
+						callback('error', null);
+					}
 				});
 			} else {
 				adapter.log.error("getSnapshot. stream = NULL");
@@ -147,8 +159,8 @@ function saveFileSnapshot(message, callback){
 			}
 			if (!err){
 				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
-				saveImage(stream.uri, cam.username, cam.password, message.file, img => {
-					callback(null, img);
+				saveImage(stream.uri, cam.username, cam.password, message.file, result => {
+					callback(null, result);
 				});
 			}
         });
@@ -160,13 +172,18 @@ function saveFileSnapshot(message, callback){
 function saveImage(url, username, password, file, callback){
     let picStream;
 	httpGet(url, username, password, (img) => {
-		picStream = fs.createWriteStream(file);
-		picStream.write(img.rawImage);
-		picStream.on('close', function() {
-			adapter.log.debug('Image saved');
-			callback("OK");
-		});
-		picStream.end();
+		if (img) {
+			picStream = fs.createWriteStream(file);
+			picStream.write(img.rawImage);
+			picStream.on('close', function() {
+				adapter.log.debug('Image saved');
+				callback("OK");
+			});
+			picStream.end();
+		} else {
+			callback('httpGet error');
+		}
+		
 	});
 }
 
