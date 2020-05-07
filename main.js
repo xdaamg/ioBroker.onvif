@@ -105,7 +105,11 @@ function httpGet(url, username, password, imageWidth, callback){
 
 function getSnapshot(message, callback){
 	let id = message.id,
-        objId = adapter.namespace+'.' + id;
+        objId = '';
+		
+	if (id.indexOf(adapter.namespace) >= 0) objId = id;
+		else objId = adapter.namespace+'.' + id;
+		
     let cam = cameras[objId];
  
 	adapter.log.debug('getSnapshot. message.id: ' + JSON.stringify(objId));
@@ -159,7 +163,7 @@ function saveFileSnapshot(message, callback){
 			}
 			if (!err){
 				adapter.log.debug('getSnapshotUri: ' + JSON.stringify(stream.uri));
-				saveImage(stream.uri, cam.username, cam.password, message.file, result => {
+				saveImage(stream.uri, cam.username, cam.password, message.file, (message.width || null), result => {
 					callback(null, result);
 				});
 			}
@@ -169,9 +173,9 @@ function saveFileSnapshot(message, callback){
 	}
 }
 
-function saveImage(url, username, password, file, callback){
+function saveImage(url, username, password, file, width, callback){
     let picStream;
-	httpGet(url, username, password, (img) => {
+	httpGet(url, username, password, width, (img) => {
 		if (img) {
 			picStream = fs.createWriteStream(file);
 			picStream.write(img.rawImage);
