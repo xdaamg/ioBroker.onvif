@@ -67,6 +67,7 @@ function httpGet(url, username, password, imageWidth, callback){
 	const options = {
 		method: 'GET',
 		rejectUnauthorized: false,
+		timeout: [3000, 10000],
 		digestAuth: username + ":" + password,
 		headers: {
 			'Content-Type': 'image/jpeg'
@@ -79,7 +80,7 @@ function httpGet(url, username, password, imageWidth, callback){
 			callback(null);
 		} else {
 			adapter.log.debug('httpGet.statusCode: ' + res.statusCode);
-			adapter.log.debug('httpGet.headers: ' + res.headers);
+			adapter.log.debug('httpGet.headers: ' + JSON.stringify(res.headers));
 			adapter.log.debug('httpGet.size: ' + res.size);
 			
 			const image = sharp(data);
@@ -125,19 +126,20 @@ function getSnapshot(message, callback){
 			if (err) {
 				adapter.log.error("getSnapshot. Error: " + err);
 				callback(err, null);
-			}
-			if (stream){
-				adapter.log.debug('getSnapshotUri:stream.uri ' + JSON.stringify(stream.uri));
-				httpGet(stream.uri, cam.username, cam.password, (message.width || null), (img) => {
-					if (img) {
-						callback(null, img);
-					} else {
-						callback('error', null);
-					}
-				});
 			} else {
-				adapter.log.error("getSnapshot. stream = NULL");
-				callback(err, null);
+				if (stream){
+					adapter.log.debug('getSnapshotUri:stream.uri ' + JSON.stringify(stream.uri));
+					httpGet(stream.uri, cam.username, cam.password, (message.width || null), (img) => {
+						if (img) {
+							callback(null, img);
+						} else {
+							callback('error', null);
+						}
+					});
+				} else {
+					adapter.log.error("getSnapshot. stream = NULL");
+					callback(err, null);
+				}
 			}
         });
     } else {
@@ -292,6 +294,54 @@ async function setCameras(devices){
 	}));
 }
 
+function PullPointSubscription(cam, id, callback){
+	cam.createPullPointSubscription((err, data) => {
+		if (err) {
+			adapter.log.error("createPullPointSubscription: " + err);
+			updateState(id, 'connection', false, {"type": "boolean", "read": true, "write": false});
+			callback && callback('stop');
+		} else {
+			adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
+			updateState(id, 'connection', true, {"type": "boolean", "read": true, "write": false});
+			let countErr = 0;
+			if (typeof timeoutID[id] !== 'undefined'){
+				timeoutID[id] = setTimeout(function tick(){
+					cam.pullMessages({timeout: 9000, messageLimit: 10}, (err, events) => {
+						if (typeof timeoutID[id] !== 'undefined'){
+							if (err) {
+								countErr++;
+								adapter.log.warn(`startCameras (${id}) pullMessages: ERROR - ${err} (count error = ${countErr}). Resubscribe to events`);
+								if (countErr > 3){
+									adapter.log.error(`Camera/NVT (${id}) did not answer several times in a row. Disconnected!`);
+									clearTimeout(timeoutID[id]);
+									updateState(id, 'connection', false, {"type": "boolean", "read": true, "write": false});
+									callback && callback('stop');
+								} else {
+									timeoutID[id] = setTimeout(tick, 10000);
+								}
+							} else {
+								countErr = 0;
+								if (events.notificationMessage) {
+									adapter.log.debug(`EVENT (${id}): ${JSON.stringify(events)}`);
+									
+									if (Array.isArray(events.notificationMessage)){
+										events.notificationMessage.forEach(topic => {
+											camEvents(id, topic);
+										});
+									} else {
+										camEvents(id, events.notificationMessage);
+									}
+								}
+								timeoutID[id] = setTimeout(tick, 10000);
+							}
+						}
+					});
+				}, 1000);
+			}
+		}
+	});
+}
+
 async function startCameras(){
     adapter.log.debug('startCameras');
 	clearTimeouts();
@@ -305,8 +355,7 @@ async function startCameras(){
 		} else for (let item of devices) {
 			let dev = item,
             devData = dev.native,
-            cam, 
-			countErr = 0;
+            cam;
 			
 			updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
 			adapter.getState(devData.id + '.subscribeEvents', (err, state) => {
@@ -319,48 +368,11 @@ async function startCameras(){
 					cam = cameras[dev._id];
 					// message subscription
 					if (typeof cam !== 'undefined'){
-						cam.createPullPointSubscription((err, data) => {
-							if (err) {
-								adapter.log.error("createPullPointSubscription: " + err);
-								updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
-							} else {
-								adapter.log.debug("createPullPointSubscription: " + JSON.stringify(data));
-								updateState(devData.id, 'connection', true, {"type": "boolean", "read": true, "write": false});
-								if (typeof timeoutID[devData.id] !== 'undefined'){
-									timeoutID[devData.id] = setTimeout(function tick(){
-										cam.pullMessages({timeout: 10000, messageLimit: 10}, (err, events) => {
-											if (typeof timeoutID[devData.id] !== 'undefined'){
-												if (err) {
-													countErr++;
-													adapter.log.warn(`startCameras (${devData.id}) pullMessages: ERROR - ${err} (count error = ${countErr}). Resubscribe to events`);
-													if (countErr > 3){
-														adapter.log.error(`Camera/NVT (${devData.id}) did not answer several times in a row. Disconnected!`);
-														clearTimeout(timeoutID[devData.id]);
-														updateState(devData.id, 'connection', false, {"type": "boolean", "read": true, "write": false});
-													} else {
-														timeoutID[devData.id] = setTimeout(tick, 10000);
-													}
-												} else {
-													countErr = 0;
-													if (events.notificationMessage) {
-														adapter.log.debug(`EVENT (${devData.id}): ${JSON.stringify(events)}`);
-														
-														if (Array.isArray(events.notificationMessage)){
-															events.notificationMessage.forEach(topic => {
-																camEvents(devData.id, topic);
-															});
-														} else {
-															camEvents(devData.id, events.notificationMessage);
-														}
-													}
-													timeoutID[devData.id] = setTimeout(tick, 10000);
-												}
-											}
-										});
-									}, 1000);
-								}
-							}
-						});
+						timeoutID.subscribeRestart = setTimeout(function tick(){
+							PullPointSubscription(cam, devData.id, err => {
+								timeoutID.subscribeRestart = setTimeout(tick, 60000);
+							});
+						}, 100);
 					}
 				} else {
 					adapter.log.warn(`startCameras. This Camera/NVT ${devData.id} does not support PullPoint Events or subscribeEvents = false`);
