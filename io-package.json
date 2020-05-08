@@ -3,6 +3,18 @@
         "name": "onvif",
         "version": "0.4.3",
         "news": {
+			"0.4.3": {
+				"en": "Snapshot preview is squeezed. Support digest authentification.",
+				"de": "Die Schnappschussvorschau wird gedrückt. Unterstützung der Digest-Authentifizierung.",
+				"ru": "Мини снимки в админ панели сжаты. Поддержка digest authentification.",
+				"pt": "A visualização do instantâneo é compactada. Suporte à autenticação de resumo.",
+				"nl": "Snapshotvoorbeeld wordt geperst. Ondersteuning van verificatieverificatie.",
+				"fr": "L'aperçu de l'instantané est compressé. Prise en charge de l'authentification Digest.",
+				"it": "L'anteprima dell'istantanea viene compressa. Supporta l'autenticazione digest.",
+				"es": "La vista previa de la instantánea se exprime. Soporte de autenticación de resumen.",
+				"pl": "Podgląd migawki jest ściśnięty. Obsługuje uwierzytelnianie skrótów.",
+				"zh-cn": "快照预览受到挤压。支持摘要认证。"
+			},
 			"0.4.2": {
 				"en": "Updated admin panel",
 				"de": "Admin-Panel aktualisiert",

@@ -174,6 +174,8 @@ because the adapter works by subscribing to events, the state time of `state.ts`
 ### 0.4.3 (2020-05-08)
 * (haba1234) Snapshot preview is squeezed
 * (haba1234) Preview is buffered and not requested again
+* (haba1234) After a minute, re-subscribe to camera events after 4 errors
+* (haba1234) Support digest authentification
 * (haba1234) node >= 10
 
 ### 0.4.2 (2020-05-03)
