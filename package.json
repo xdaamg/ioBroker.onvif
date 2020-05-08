@@ -34,6 +34,7 @@
     "onvif": "^0.6.2",
     "nimble": "^0.0.2",
 	"sharp": "^0.25.2",
+	"urllib": "^2.34.2",
     "@iobroker/adapter-core": "^2.2.1"
   },
   "devDependencies": {
