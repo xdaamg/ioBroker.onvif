@@ -10,12 +10,14 @@
 // you need to create an adapter
 const utils 	= require('@iobroker/adapter-core'); // Get common adapter utils
 const tools 	= require(utils.controllerDir + '/lib/tools');
-const http 	 	= require('http');
+//const http 	 	= require('http');
+//const crypt 	= require('crypto');
 const Cam   	= require('onvif').Cam;
 const flow  	= require('nimble');
 const url   	= require('url');
 const fs    	= require('fs');
 const sharp    	= require('sharp');
+const httpClient = require('urllib');
 const inherits 	= require('util').inherits;
 
 /**
@@ -63,17 +65,24 @@ function httpGet(url, username, password, imageWidth, callback){
 	}
 	
 	const options = {
-		auth: username + ":" + password
+		method: 'GET',
+		rejectUnauthorized: false,
+		digestAuth: username + ":" + password,
+		headers: {
+			'Content-Type': 'image/jpeg'
+		}
 	};
-	
-	const req = http
-	.get(url, options, (res) => {
-		let data = [];
-		res.on('data', (chunk) => {
-			data.push(chunk);
-		});
-		res.on('end', () => {
-			const image = sharp(Buffer.concat(data));
+
+	httpClient.request(url, options, (err, data, res) => {
+		if (err) {
+			adapter.log.error('httpGet. Error: ' + JSON.stringify(err));
+			callback(null);
+		} else {
+			adapter.log.debug('httpGet.statusCode: ' + res.statusCode);
+			adapter.log.debug('httpGet.headers: ' + res.headers);
+			adapter.log.debug('httpGet.size: ' + res.size);
+			
+			const image = sharp(data);
 			image
 			.metadata()
 			.then(metadata => {
@@ -87,20 +96,14 @@ function httpGet(url, username, password, imageWidth, callback){
 					mimeType: "image/jpeg",
 					rawImage: result
 				};
-				adapter.log.debug('httpGet: ' + JSON.stringify(img));
 				callback(img);
 			})
 			.catch(err => {
 				adapter.log.error('httpGet. sharp ' + JSON.stringify(err));
 				callback(null);
 			});
-		});
-	})
-	.on('error', (err) => {
-		adapter.log.error('httpGet. Error: ' + JSON.stringify(err));
-		callback(null);
+		}
 	});
-	req.end();
 }
 
 function getSnapshot(message, callback){
