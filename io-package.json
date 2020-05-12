@@ -1,8 +1,19 @@
 {
     "common": {
         "name": "onvif",
-        "version": "0.4.3",
+        "version": "0.4.4",
         "news": {
+			"0.4.4": {
+				"en": "Added new state",
+				"de": "Neuer Status hinzugefügt",
+				"ru": "Добавлено новое состояние",
+				"pt": "Adicionado novo estado",
+				"nl": "Nieuwe staat toegevoegd",
+				"fr": "Nouvel état ajouté",
+				"it": "Aggiunto nuovo stato",
+				"es": "Nuevo estado agregado",
+				"pl": "Dodano nowy stan",
+				"zh-cn": "添加了新状态"
 			"0.4.3": {
 				"en": "Snapshot preview is squeezed. Support digest authentification.",
 				"de": "Die Schnappschussvorschau wird gedrückt. Unterstützung der Digest-Authentifizierung.",

@@ -67,7 +67,7 @@ function httpGet(url, username, password, imageWidth, callback){
 	const options = {
 		method: 'GET',
 		rejectUnauthorized: false,
-		timeout: [3000, 10000],
+		timeout: [3000, 15000],
 		digestAuth: username + ":" + password,
 		headers: {
 			'Content-Type': 'image/jpeg'
@@ -496,11 +496,13 @@ function processEvent(devId, eventTime, eventTopic, eventProperty, sourceName, s
 	}
 	
 	let nameObj = 'message.' + eventTopic.toLowerCase() + '.' + dataName;
+	let nameObj2 = 'message.' + eventTopic.toLowerCase() + '.value';
 	let data = {};
 	data['Value'] = dataValue;
 	data['UtcTime'] = eventTime.toJSON();
-
+	
 	updateState(devId, nameObj, data, {"type": 'object', "read": true, "write": false});
+	updateState(devId, nameObj2, dataValue, {"type": typeof dataValue, "read": true, "write": false});
 	adapter.log.debug(output);
 }
 
@@ -996,6 +998,7 @@ async function updateDev(dev_id, dev_name, devData, sub_obj) {
 				data['UtcTime'] = '';
 				
 				updateState(nameTopic, item.nameValue, data, {"type": 'object', "read": true, "write": false});
+				updateState(nameTopic, 'value', value, {"type": typeof value, "read": true, "write": false});
 				adapter.log.debug('updateDev. updateState = ' + JSON.stringify(nameTopic));
 			});
 			updateState(dev_id, 'subscribeEvents', devData.subscribeEvents, {"type": "boolean", "read": true, "write": true});
