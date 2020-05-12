@@ -14,6 +14,7 @@
 				"es": "Nuevo estado agregado",
 				"pl": "Dodano nowy stan",
 				"zh-cn": "添加了新状态"
+			},
 			"0.4.3": {
 				"en": "Snapshot preview is squeezed. Support digest authentification.",
 				"de": "Die Schnappschussvorschau wird gedrückt. Unterstützung der Digest-Authentifizierung.",
