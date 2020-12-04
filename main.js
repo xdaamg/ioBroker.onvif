@@ -297,7 +297,7 @@ async function setCameras(devices){
 function PullPointSubscription(cam, id, callback){
 	cam.createPullPointSubscription((err, data) => {
 		if (err) {
-			adapter.log.error("createPullPointSubscription: " + err);
+			adapter.log.debug("createPullPointSubscription: " + err);
 			updateState(id, 'connection', false, {"type": "boolean", "read": true, "write": false});
 			callback && callback('stop');
 		} else {
@@ -307,10 +307,21 @@ function PullPointSubscription(cam, id, callback){
 			if (typeof timeoutID[id] !== 'undefined'){
 				timeoutID[id] = setTimeout(function tick(){
 					cam.pullMessages({timeout: 9000, messageLimit: 10}, (err, events) => {
+                                            adapter.log.debug(`EVENT err = (${JSON.stringify(err)}), events = ${JSON.stringify(events)}`);
+						if (events == undefined) {
+							/*
+							//manually setState to false (modify it to match your objects):
+							adapter.setState('onvif.0.192_168_1_56_8000.message.ruleengine.cellmotiondetector.motion.value', false, callback);
+                                                        adapter.setState('onvif.0.192_168_1_57_8000.message.ruleengine.cellmotiondetector.motion.value', false, callback);
+                                                        adapter.setState('onvif.0.192_168_1_58_8000.message.ruleengine.cellmotiondetector.motion.value', false, callback);
+                                                        adapter.setState('onvif.0.192_168_1_59_8000.message.ruleengine.cellmotiondetector.motion.value', false, callback);
+							*/
+                                                        startCameras();
+                                                }
 						if (typeof timeoutID[id] !== 'undefined'){
 							if (err) {
 								countErr++;
-								adapter.log.warn(`startCameras (${id}) pullMessages: ERROR - ${err} (count error = ${countErr}). Resubscribe to events`);
+								adapter.log.debug(`startCameras (${id}) pullMessages: ERROR - ${err} (count error = ${countErr}). Resubscribe to events`);
 								if (countErr > 3){
 									adapter.log.error(`Camera/NVT (${id}) did not answer several times in a row. Disconnected!`);
 									clearTimeout(timeoutID[id]);
